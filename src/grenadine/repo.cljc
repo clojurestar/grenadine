@@ -13,8 +13,16 @@
   host)
 
 (defn local-repo
+  "Return the Maven local repository path.
+
+  An explicit `:local-repo` wins, followed by
+  `GRENADINE_LOCAL_REPOSITORY`, then `$HOME/.m2/repository`."
   [{:keys [host local-repo]}]
   (or local-repo
+      (let [getenv (:getenv host)
+            configured (when (fn? getenv)
+                         (getenv "GRENADINE_LOCAL_REPOSITORY"))]
+        (when (seq configured) configured))
       (str ((:home-dir host)) "/.m2/repository")))
 
 (defn- trim-trailing-slashes

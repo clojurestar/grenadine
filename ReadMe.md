@@ -11,6 +11,19 @@ fetches artifacts, verifies checksums, and prepares extracted source roots for
 non-JVM runtimes.
 
 
+## Configuration
+
+Grenadine uses the standard Maven local repository at
+`$HOME/.m2/repository`. Set `GRENADINE_LOCAL_REPOSITORY` to use another
+repository:
+
+```sh
+export GRENADINE_LOCAL_REPOSITORY=/path/to/maven/repository
+```
+
+An explicit `:local-repo` option takes precedence over the environment.
+
+
 ## Development
 
 ```sh

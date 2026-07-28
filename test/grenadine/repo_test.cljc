@@ -30,6 +30,23 @@
       :home-dir (fn [] "/home/test")
       :getenv (fn [_] nil)}}))
 
+(deftest selects-local-repository
+  (let [host {:home-dir (fn [] "/home/test")
+              :getenv
+              (fn [name]
+                (when (= name "GRENADINE_LOCAL_REPOSITORY")
+                  "/env/m2"))}]
+    (is (= "/explicit/m2"
+           (repo/local-repo {:host host :local-repo "/explicit/m2"})))
+    (is (= "/env/m2"
+           (repo/local-repo {:host host})))
+    (is (= "/home/test/.m2/repository"
+           (repo/local-repo
+            {:host (assoc host :getenv (fn [_] ""))})))
+    (is (= "/home/test/.m2/repository"
+           (repo/local-repo
+            {:host (assoc host :getenv (fn [_] nil))})))))
+
 (deftest fetches-verifies-and-enriches-lock
   (let [url "https://repo.example/demo/a/1/a-1.jar"
         {:keys [host files]}
