@@ -1,0 +1,10 @@
+{:paths ["src"]
+ :mvn/local-repo ".cache/m2"
+ :aliases
+ {:test
+  {:extra-paths ["test"]
+   :main-opts ["-m" "grenadine.test-runner"]}
+  :oracle
+  {:extra-paths ["test"]
+   :extra-deps
+   {org.clojure/tools.deps {:mvn/version "0.31.1642"}}}}}

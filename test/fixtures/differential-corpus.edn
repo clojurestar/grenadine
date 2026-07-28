@@ -1,0 +1,18 @@
+[{:name :data-json
+  :deps {org.clojure/data.json {:mvn/version "2.5.1"}}}
+
+ {:name :math-combinatorics
+  :deps {org.clojure/math.combinatorics {:mvn/version "0.3.0"}}}
+
+ {:name :medley
+  :deps {dev.weavejester/medley {:mvn/version "1.10.0"}}}
+
+ {:name :cheshire
+  :deps {cheshire/cheshire {:mvn/version "6.1.0"}}}
+
+ {:name :ring-core
+  :deps {ring/ring-core {:mvn/version "1.15.3"}}}
+
+ {:name :direct-version-dominance
+  :deps {org.clojure/clojure {:mvn/version "1.11.1"}
+         org.clojure/data.json {:mvn/version "2.5.1"}}}]
