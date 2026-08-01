@@ -29,6 +29,25 @@ check() {
   fi
 }
 
+check_empty() {
+  local description=$1 expected_status=$2
+  shift 2
+  local output status
+  set +e
+  output=$("$@" 2>&1)
+  status=$?
+  set -e
+  checks=$((checks + 1))
+  if [[ $status != "$expected_status" || -n $output ]]; then
+    echo "not ok $checks - $description" >&2
+    echo "  status: $status" >&2
+    echo "  output: $output" >&2
+    failures=$((failures + 1))
+  else
+    echo "ok $checks - $description"
+  fi
+}
+
 seed_repo() {
   local repository=$1
   local base=$repository/org/example/demo/1.0.0
@@ -57,13 +76,20 @@ check "version" 0 '^grenadine v0\.1\.0$' "$grenadine" --version
 check "help" 0 '^Usage: grenadine' "$grenadine" --help
 check "missing file argument" 1 'a deps file is required' "$grenadine"
 check "unknown option" 1 'unknown option: --wat' "$grenadine" --wat
+check "removed repo option" 1 'unknown option: --repo' "$grenadine" --repo=somewhere
 
 deps_file="$temporary/deps file.edn"
 explicit_repo="$temporary/explicit repo"
 seed_repo "$explicit_repo"
 write_deps "$deps_file"
-check "explicit repository" 0 'unverified-artifact' \
-  "$grenadine" "--repo=$explicit_repo" "$deps_file"
+check "long repository option" 0 '^Installed org\.example/demo 1\.0\.0$' \
+  "$grenadine" "--repository=$explicit_repo" "$deps_file"
+check "short repository option" 0 '^Installed org\.example/demo 1\.0\.0$' \
+  "$grenadine" -R "$explicit_repo" "$deps_file"
+check_empty "short quiet option" 0 \
+  "$grenadine" -q -R "$explicit_repo" "$deps_file"
+check_empty "long quiet option" 0 \
+  "$grenadine" --quiet --repository "$explicit_repo" "$deps_file"
 
 file_repo="$temporary/file repo"
 seed_repo "$file_repo"
@@ -93,7 +119,7 @@ check "deps map validation" 1 ':deps must be a map' \
 printf '{:deps {org.example/demo {:git/url "https://example.invalid"}}}\n' \
   > "$deps_file"
 check "unsupported coordinate" 1 'requires :mvn/version' \
-  "$grenadine" "--repo=$explicit_repo" "$deps_file"
+  "$grenadine" "--repository=$explicit_repo" "$deps_file"
 
 if (( failures )); then
   echo "$failures of $checks CLI checks failed" >&2

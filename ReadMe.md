@@ -18,13 +18,16 @@ The native `grenadine` command installs the Maven dependencies from a
 
 ```sh
 grenadine deps.edn
-grenadine --repo=my-m2 deps.edn
+grenadine --repository=my-m2 deps.edn
+grenadine --quiet deps.edn
 grenadine --help
 grenadine --version
 ```
 
-The repository used by `--repo` takes precedence over `:mvn/local-repo` in the
-deps file, `GRENADINE_LOCAL_REPOSITORY`, and the default
+By default, Grenadine prints every resolved dependency it installs. Use
+`-q` or `--quiet` to suppress non-error output. The repository used by `-R` or
+`--repository` takes precedence over `:mvn/local-repo` in the deps file,
+`GRENADINE_LOCAL_REPOSITORY`, and the default
 `$HOME/.m2/repository`, in that order.
 
 On Bash and Zsh, the current release can also be downloaded, verified, and run

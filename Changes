@@ -4,3 +4,4 @@
   changes:
   - Add the native Grenadine dependency installer.
   - Add cross-platform release archives and one-shot launchers.
+  - List installed dependencies by default and add quiet mode.

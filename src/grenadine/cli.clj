@@ -6,14 +6,15 @@
 
 (def usage
   (str
-   "Usage: grenadine [--repo DIR|--repo=DIR] DEPS-FILE\n"
+   "Usage: grenadine [OPTIONS] DEPS-FILE\n"
    "       grenadine --help\n"
    "       grenadine --version\n\n"
    "Install the Maven dependencies in DEPS-FILE.\n\n"
    "Options:\n"
-   "  --repo DIR       Install into this Maven repository\n"
-   "  -h, --help       Show this help\n"
-   "  -V, --version    Show the Grenadine version"))
+   "  -R, --repository DIR  Install into this Maven repository\n"
+   "  -q, --quiet           Suppress non-error output\n"
+   "  -h, --help            Show this help\n"
+   "  -V, --version         Show the Grenadine version"))
 
 (defn- exit! [status]
   (os.Exit status))
@@ -32,16 +33,19 @@
         (contains? #{"-V" "--version"} argument)
         (recur (next remaining) (assoc options :version true))
 
-        (= "--repo" argument)
-        (if-let [repository (second remaining)]
-          (recur (drop 2 remaining) (assoc options :repo repository))
-          (fail! "--repo requires a directory"))
+        (contains? #{"-q" "--quiet"} argument)
+        (recur (next remaining) (assoc options :quiet true))
 
-        (.startsWith argument "--repo=")
-        (let [repository (subs argument (count "--repo="))]
+        (contains? #{"-R" "--repository"} argument)
+        (if-let [repository (second remaining)]
+          (recur (drop 2 remaining) (assoc options :repository repository))
+          (fail! (str argument " requires a directory")))
+
+        (.startsWith argument "--repository=")
+        (let [repository (subs argument (count "--repository="))]
           (when (empty? repository)
-            (fail! "--repo requires a directory"))
-          (recur (next remaining) (assoc options :repo repository)))
+            (fail! "--repository requires a directory"))
+          (recur (next remaining) (assoc options :repository repository)))
 
         (.startsWith argument "-")
         (fail! (str "unknown option: " argument))
@@ -89,9 +93,15 @@
         (fail! (str file " :deps must be a map")))
       config)))
 
-(defn- install! [{:keys [file repo]}]
+(defn- print-installed!
+  [result]
+  (doseq [{:keys [group artifact version]} (get-in result [:lock :artifacts])]
+    (fmt.Fprintln os.Stdout
+                  (str "Installed " group "/" artifact " " version))))
+
+(defn- install! [{:keys [file repository quiet]}]
   (let [config (read-config file)
-        local-repo (or repo (:mvn/local-repo config))
+        local-repo (or repository (:mvn/local-repo config))
         result
         (grenadine/install!
          (:deps config)
@@ -99,9 +109,11 @@
                   :repos (configured-repos config)
                   :mediation :tools-deps}
            local-repo (assoc :local-repo local-repo)))]
-    (doseq [warning (:warnings result)]
-      (fmt.Fprintln os.Stderr
-                    (str "grenadine: warning: " (pr-str warning))))))
+    (when-not quiet
+      (print-installed! result)
+      (doseq [warning (:warnings result)]
+        (fmt.Fprintln os.Stderr
+                      (str "grenadine: warning: " (pr-str warning)))))))
 
 (defn -main [& argv]
   (try
