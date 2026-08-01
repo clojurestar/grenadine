@@ -1,6 +1,6 @@
 ---
 title: Grenadine
-description: A portable Maven dependency installer without Java
+description: Pure Clojure Maven dependency resolution across Clojure dialects
 hide:
   - navigation
   - toc
@@ -10,12 +10,49 @@ hide:
 
 > Pomegranate, with the JVM pressed out.
 
-Grenadine is a portable Maven dependency installer compiled with
-[Gloat](https://gloathub.org/). It resolves the Maven dependencies in a local
-or remote `deps.edn` source and installs them into your local Maven repository
-without Java.
+Grenadine is first a **pure Clojure library** for resolving and installing
+Maven dependencies. Its resolver core runs unchanged on JVM Clojure,
+[Babashka](https://babashka.org/),
+[Glojure](https://github.com/glojurelang/glojure),
+[Jolt](https://github.com/jolt-lang/jolt), and
+[let-go](https://github.com/nooga/let-go).
 
-## Use it
+It gives Clojure dialects a shared way to support `deps.edn`-style Maven
+dependencies without reimplementing Maven resolution for every runtime.
+
+## One resolver, many dialects
+
+The portable `grenadine.core` library:
+
+- parses and builds effective POMs;
+- resolves transitive dependency graphs;
+- supports newest, Maven-nearest, and tools.deps mediation;
+- downloads artifacts and verifies checksums;
+- emits deterministic locks; and
+- prepares extracted Clojure source roots for non-JVM runtimes.
+
+The portable API lives in `grenadine.core`. Small runtime integrations provide
+filesystem, HTTP, digest, and load-path operations. Dialect-facing facades add
+familiar `add-lib`, `add-libs`, `add-deps`, and `sync-deps` entry points:
+
+| Runtime | Grenadine namespace |
+| --- | --- |
+| Babashka | `grenadine.bb` |
+| Glojure | `glojure.deps` |
+| Jolt | `jolt.deps` |
+| let-go | `let-go.deps` |
+
+Full library and integration documentation will be added here as the runtime
+adapters mature.
+
+## Also a standalone CLI
+
+Grenadine also ships as a native command compiled with
+[Gloat](https://gloathub.org/). It is useful when you want to install the
+dependencies from a local or remote `deps.edn` by hand, without first running
+a Clojure dialect or a JVM.
+
+Use an installed `grenadine` binary like this:
 
 ```sh
 grenadine deps.edn
@@ -32,9 +69,9 @@ grenadine --repository=my-m2 \
   https://github.com/yaml/yamlscript/blob/main/core/deps.edn
 ```
 
-Grenadine lists each newly installed dependency immediately, then prints the
-installed, already-present, and total counts. Quiet mode suppresses non-error
-output.
+The command lists each newly installed dependency immediately, then prints
+the installed, already-present, and total counts. Quiet mode suppresses
+non-error output.
 
 ## Run without installing
 
@@ -56,6 +93,5 @@ PowerShell users can run:
 Release binaries cover Linux on amd64, arm64, and armv6; macOS and Windows on
 amd64 and arm64; and FreeBSD, OpenBSD, and NetBSD on amd64 and arm64.
 
-Full documentation is coming later. For now, see the
-[Grenadine repository](https://github.com/clojurestar/grenadine) for source,
-development instructions, and releases.
+For source, development instructions, and releases, see the
+[Grenadine repository](https://github.com/clojurestar/grenadine).
