@@ -1,35 +1,47 @@
-TOP := ..
-SITE := site
+R := https://github.com/makeplus/makes
+M := $(or $(MAKES_REPO_DIR),../.cache/makes)
+$(shell [ -d '$M' ] || git clone -q $R '$M')
+
+include $M/init.mk
+
+ifdef MAKES_REPO_DIR
+MAKES_LOCAL_DIR ?= $(TOP)/.cache/local
+endif
+
+include $M/clean.mk
+
+PYTHON-VENV := $(ROOT)/venv
+
+include $M/python.mk
+
+SHELL-DEPS += $(PYTHON-VENV)
+
+include $M/shell.mk
+
+export UV_LINK_MODE := copy
+export UV_CACHE_DIR := $(TOP)/.cache/uv
+export NO_MKDOCS_2_WARNING := 1
+
 REPO ?= git@github.com:clojurestar/grenadine
-VERSION ?= $(shell cat $(TOP)/VERSION)
 
-.PHONY: site
+MAKES-CLEAN := site
+MAKES-REALCLEAN := $(PYTHON-VENV)
 
-site: $(SITE)/index.html $(SITE)/get $(SITE)/get.ps1
+DEPS := $(PYTHON-VENV)
+DOCS := $(shell find docs -type f)
 
-$(SITE)/.dir:
-	mkdir -p '$(SITE)'
-	touch '$@'
+default:: site
 
-$(SITE)/index.html: index.html $(TOP)/ReadMe.md $(TOP)/VERSION | $(SITE)/.dir
-	sed 's/@VERSION@/$(VERSION)/g' '$<' > '$@'
+site: $(DEPS) $(DOCS) mkdocs.yaml
+	mkdocs build --strict -d $@
 
-$(SITE)/get: get | $(SITE)/.dir
-	cp '$<' '$@'
-
-$(SITE)/get.ps1: get.ps1 | $(SITE)/.dir
-	cp '$<' '$@'
-
-serve: site
-	cd '$(SITE)' && python3 -m http.server 8000
+serve: $(DEPS)
+	mkdocs serve --livereload
 
 publish: site
-	cd '$(SITE)' && \
-	  git init -q && \
+	cd $< && \
+	  git init && \
 	  git add -A && \
-	  git commit -qm 'Deploy Grenadine website' && \
-	  git push -f '$(REPO)' HEAD:gh-pages
-	rm -rf '$(SITE)'
-
-clean:
-	rm -rf '$(SITE)'
+	  git commit -m 'Deploy Grenadine website' && \
+	  git push -f $(REPO) HEAD:gh-pages
+	$(RM) -r $<

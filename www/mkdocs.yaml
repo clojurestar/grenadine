@@ -1,0 +1,54 @@
+site_name: Grenadine
+site_url: https://clojurestar.github.io/grenadine/
+site_description: A portable Maven dependency installer without Java
+site_author: Ingy dot Net
+
+repo_name: clojurestar/grenadine
+repo_url: https://github.com/clojurestar/grenadine
+edit_uri: edit/main/www/docs/
+
+theme:
+  name: material
+  features:
+    - navigation.instant
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: deep orange
+      accent: amber
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: deep orange
+      accent: amber
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  icon:
+    logo: material/package-variant-closed
+    repo: fontawesome/brands/github
+
+nav:
+  - Grenadine: index.md
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - toc:
+      permalink: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.superfences
+
+plugins:
+  - search
+
+copyright: Copyright &copy; 2026 Ingy dot Net

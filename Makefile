@@ -94,17 +94,17 @@ test-cli: $(GRENADINE)
 	GRENADINE='$(GRENADINE)' test/cli
 
 test-scripts: $(SHELLCHECK) $(PWSH)
-	$(SHELLCHECK) util/stage-sources util/release util/release-dist test/cli www/get
-	$(PWSH) -NoProfile -Command '$$tokens = $$null; $$errors = $$null; [System.Management.Automation.Language.Parser]::ParseFile("www/get.ps1", [ref] $$tokens, [ref] $$errors) > $$null; if ($$errors.Count) { $$errors | Out-String | Write-Error; exit 1 }'
+	$(SHELLCHECK) util/stage-sources util/release util/release-dist test/cli www/docs/get
+	$(PWSH) -NoProfile -Command '$$tokens = $$null; $$errors = $$null; [System.Management.Automation.Language.Parser]::ParseFile("www/docs/get.ps1", [ref] $$tokens, [ref] $$errors) > $$null; if ($$errors.Count) { $$errors | Out-String | Write-Error; exit 1 }'
 
 site:
-	$(MAKE) -C www site VERSION=$$(cat '$(VERSION-FILE)')
+	$(MAKE) -C www site
 
 serve:
-	$(MAKE) -C www serve VERSION=$$(cat '$(VERSION-FILE)')
+	$(MAKE) -C www serve
 
 publish publish-www:
-	$(MAKE) -C www publish VERSION=$$(cat '$(VERSION-FILE)')
+	$(MAKE) -C www publish
 
 release-prep:
 	@$(if $(filter command line,$(origin VERSION)),,\
