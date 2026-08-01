@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+top=${1:?usage: stage-sources TOP DESTINATION}
+destination=${2:?usage: stage-sources TOP DESTINATION}
+version=$(< "$top/VERSION")
+
+[[ $version =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
+  echo "stage-sources: VERSION must have the form X.Y.Z" >&2
+  exit 1
+}
+
+rm -rf "$destination"
+mkdir -p "$destination"
+
+cp "$top/src/grenadine/cli.clj" "$destination/main.clj"
+for namespace in core graph lock pom repo version xml; do
+  cp "$top/src/grenadine/$namespace.cljc" \
+    "$destination/grenadine_${namespace}.clj"
+done
+
+cat > "$destination/grenadine_build_info.clj" <<EOF
+(ns grenadine.build-info)
+(def version "$version")
+EOF

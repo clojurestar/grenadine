@@ -1,0 +1,103 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+grenadine=${GRENADINE:?GRENADINE is required}
+temporary=$(mktemp -d)
+trap 'rm -rf "$temporary"' EXIT
+
+failures=0
+checks=0
+
+check() {
+  local description=$1 expected_status=$2 expected_pattern=$3
+  shift 3
+  local output status
+  set +e
+  output=$("$@" 2>&1)
+  status=$?
+  set -e
+  checks=$((checks + 1))
+  if [[ $status != "$expected_status" ]] ||
+     ! grep -Eq "$expected_pattern" <<< "$output"; then
+    echo "not ok $checks - $description" >&2
+    echo "  status: $status" >&2
+    echo "  output: $output" >&2
+    failures=$((failures + 1))
+  else
+    echo "ok $checks - $description"
+  fi
+}
+
+seed_repo() {
+  local repository=$1
+  local base=$repository/org/example/demo/1.0.0
+  mkdir -p "$base"
+  printf '%s\n' \
+    '<project>' \
+    '  <modelVersion>4.0.0</modelVersion>' \
+    '  <groupId>org.example</groupId>' \
+    '  <artifactId>demo</artifactId>' \
+    '  <version>1.0.0</version>' \
+    '</project>' > "$base/demo-1.0.0.pom"
+  printf 'fixture jar\n' > "$base/demo-1.0.0.jar"
+}
+
+write_deps() {
+  local file=$1 local_repo=${2:-}
+  if [[ $local_repo ]]; then
+    printf '{:mvn/local-repo "%s" :deps {org.example/demo {:mvn/version "1.0.0"}}}\n' \
+      "$local_repo" > "$file"
+  else
+    printf '{:deps {org.example/demo {:mvn/version "1.0.0"}}}\n' > "$file"
+  fi
+}
+
+check "version" 0 '^grenadine v0\.1\.0$' "$grenadine" --version
+check "help" 0 '^Usage: grenadine' "$grenadine" --help
+check "missing file argument" 1 'a deps file is required' "$grenadine"
+check "unknown option" 1 'unknown option: --wat' "$grenadine" --wat
+
+deps_file="$temporary/deps file.edn"
+explicit_repo="$temporary/explicit repo"
+seed_repo "$explicit_repo"
+write_deps "$deps_file"
+check "explicit repository" 0 'unverified-artifact' \
+  "$grenadine" "--repo=$explicit_repo" "$deps_file"
+
+file_repo="$temporary/file repo"
+seed_repo "$file_repo"
+write_deps "$deps_file" "$file_repo"
+check "deps file repository" 0 'unverified-artifact' \
+  "$grenadine" "$deps_file"
+
+environment_repo="$temporary/environment repo"
+seed_repo "$environment_repo"
+write_deps "$deps_file"
+check "environment repository" 0 'unverified-artifact' \
+  env GRENADINE_LOCAL_REPOSITORY="$environment_repo" \
+  "$grenadine" "$deps_file"
+
+printf '[]\n' > "$deps_file"
+check "top-level map validation" 1 'must contain an EDN map' \
+  "$grenadine" "$deps_file"
+
+printf '{:paths ["src"]}\n' > "$deps_file"
+check "missing deps validation" 1 'does not contain :deps' \
+  "$grenadine" "$deps_file"
+
+printf '{:deps []}\n' > "$deps_file"
+check "deps map validation" 1 ':deps must be a map' \
+  "$grenadine" "$deps_file"
+
+printf '{:deps {org.example/demo {:git/url "https://example.invalid"}}}\n' \
+  > "$deps_file"
+check "unsupported coordinate" 1 'requires :mvn/version' \
+  "$grenadine" "--repo=$explicit_repo" "$deps_file"
+
+if (( failures )); then
+  echo "$failures of $checks CLI checks failed" >&2
+  exit 1
+fi
+
+echo "$checks CLI checks passed"

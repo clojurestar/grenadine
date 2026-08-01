@@ -2,4 +2,8 @@
 /.cpcache/
 /target/
 /jolt/
+/bin/
+/dist/
+/www/site/
 *.md
+!/ThirdPartyNotices.md

@@ -1,0 +1,162 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+version=${1:?usage: release-dist VERSION GLOAT SOURCE-STAGE TOP DIST BUILD}
+gloat=${2:?usage: release-dist VERSION GLOAT SOURCE-STAGE TOP DIST BUILD}
+source_stage=${3:?usage: release-dist VERSION GLOAT SOURCE-STAGE TOP DIST BUILD}
+top=${4:?usage: release-dist VERSION GLOAT SOURCE-STAGE TOP DIST BUILD}
+dist_dir=${5:?usage: release-dist VERSION GLOAT SOURCE-STAGE TOP DIST BUILD}
+build_dir=${6:?usage: release-dist VERSION GLOAT SOURCE-STAGE TOP DIST BUILD}
+
+version=${version#v}
+[[ $version =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
+  echo "release-dist: VERSION must have the form X.Y.Z" >&2
+  exit 1
+}
+[[ $(< "$top/VERSION") == "$version" ]] || {
+  echo "release-dist: VERSION=$version does not match $top/VERSION" >&2
+  exit 1
+}
+[[ $dist_dir == "$top/dist" && $build_dir == "$top/.cache/release" ]] || {
+  echo "release-dist: refusing unexpected output directories" >&2
+  exit 1
+}
+
+platforms=(
+  linux_amd64
+  linux_arm64
+  linux_armv6
+  darwin_amd64
+  darwin_arm64
+  windows_amd64
+  windows_arm64
+  freebsd_amd64
+  freebsd_arm64
+  openbsd_amd64
+  openbsd_arm64
+  netbsd_amd64
+  netbsd_arm64
+)
+
+rm -rf "$dist_dir" "$build_dir"
+mkdir -p "$dist_dir" "$build_dir/bin" "$build_dir/packages"
+
+build_platform() {
+  local platform=$1 target output name=grenadine
+  target=${platform/_//}
+  case $platform in
+    linux_armv6) target=linux/arm ;;
+    windows_*) name=grenadine.exe ;;
+  esac
+  output="$build_dir/bin/$platform/$name"
+  mkdir -p "${output%/*}"
+  echo "* Building $platform"
+  if [[ $platform == linux_armv6 ]]; then
+    GOARM=6 "$gloat" "$source_stage" \
+      --out="$output" --platform="$target" --force --quiet \
+      --module=github.com/clojurestar/grenadine
+  else
+    "$gloat" "$source_stage" \
+      --out="$output" --platform="$target" --force --quiet \
+      --module=github.com/clojurestar/grenadine
+  fi
+}
+
+for platform in "${platforms[@]}"; do
+  build_platform "$platform"
+done
+
+gloat_dir=${gloat%/bin/gloat}
+go_bin=$("$gloat" --which=go)
+go_root=$($go_bin env GOROOT)
+# Gloat keeps the modules used by generated binaries beside its managed Go
+# toolchain. Do not consult a caller's global GOPATH: releases must be
+# self-contained and buildable inside a narrowly scoped workspace sandbox.
+go_mod_cache=${go_root%/*}/go/pkg/mod
+license_base="$build_dir/licenses"
+mkdir -p "$license_base/modules"
+
+cp "$gloat_dir/License" "$license_base/Gloat-MIT.txt"
+cp "$go_root/LICENSE" "$license_base/Go-BSD-3-Clause.txt"
+
+glojure_dir=${GLOJURE_DIR:-}
+if [[ -z $glojure_dir || ! -f $glojure_dir/LICENSE.md ]]; then
+  glojure_dir=$(find "$gloat_dir/.cache" -type f -path '*/glojure-*/LICENSE.md' \
+    -printf '%h\n' -quit 2>/dev/null || true)
+fi
+[[ -n $glojure_dir && -f $glojure_dir/LICENSE.md ]] || {
+  echo "release-dist: cannot locate the Glojure license" >&2
+  exit 1
+}
+cp "$glojure_dir/LICENSE.md" "$license_base/Glojure-EPL-1.0.txt"
+
+module_list="$license_base/modules.txt"
+"$go_bin" version -m "$build_dir/bin/linux_amd64/grenadine" |
+  awk '$1 == "dep" { print $2 "\t" $3 }' |
+  sort -u > "$module_list"
+
+while IFS=$'\t' read -r module module_version; do
+  [[ -n $module && -n $module_version ]] || continue
+  module_dir="$go_mod_cache/$module@$module_version"
+  safe_name=${module//\//_}
+  safe_name=${safe_name//./_}
+  found=0
+  if [[ -d $module_dir ]]; then
+    while IFS= read -r license; do
+      cp "$license" "$license_base/modules/${safe_name}-${license##*/}"
+      found=1
+    done < <(
+      find "$module_dir" -maxdepth 1 -type f \
+        \( -iname 'LICENSE*' -o -iname 'NOTICE*' -o -iname 'COPYING*' \) |
+        sort
+    )
+  fi
+  if (( ! found )); then
+    printf '%s %s: no license file in module archive\n' \
+      "$module" "$module_version" \
+      >> "$license_base/modules-without-license-file.txt"
+  fi
+done < "$module_list"
+
+package_platform() {
+  local platform=$1 package_name package_dir archive executable
+  package_name="grenadine-$version-$platform"
+  package_dir="$build_dir/packages/$package_name"
+  mkdir -p "$package_dir/licenses"
+  cp "$top/ReadMe.md" "$package_dir/"
+  cp "$top/Changes" "$package_dir/"
+  cp "$top/License" "$package_dir/"
+  cp "$top/ThirdPartyNotices.md" "$package_dir/"
+  cp -R "$license_base/." "$package_dir/licenses/"
+
+  if [[ $platform == windows_* ]]; then
+    executable=grenadine.exe
+    cp "$build_dir/bin/$platform/$executable" "$package_dir/"
+    archive="$dist_dir/$package_name.zip"
+    (cd "$build_dir/packages" && zip -qr "$archive" "$package_name")
+  else
+    executable=grenadine
+    cp "$build_dir/bin/$platform/$executable" "$package_dir/"
+    chmod 0755 "$package_dir/$executable"
+    archive="$dist_dir/$package_name.tar.gz"
+    tar -czf "$archive" -C "$build_dir/packages" "$package_name"
+  fi
+}
+
+for platform in "${platforms[@]}"; do
+  package_platform "$platform"
+done
+
+(
+  cd "$dist_dir"
+  find . -maxdepth 1 -type f \
+    \( -name "grenadine-$version-*.tar.gz" \
+       -o -name "grenadine-$version-*.zip" \) \
+    -printf '%f\n' |
+    sort |
+    xargs sha256sum
+) > "$dist_dir/grenadine-checksums.txt"
+
+echo "* Created release artifacts"
+find "$dist_dir" -maxdepth 1 -type f -printf '  %f\n' | sort

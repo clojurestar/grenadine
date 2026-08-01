@@ -1,0 +1,6 @@
+# Grenadine release history
+
+- version: 0.1.0
+  changes:
+  - Add the native Grenadine dependency installer.
+  - Add cross-platform release archives and one-shot launchers.

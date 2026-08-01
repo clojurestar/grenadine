@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Grenadine</title>
+  <style>
+    :root { color-scheme: light dark; font-family: system-ui, sans-serif; }
+    body { max-width: 52rem; margin: 4rem auto; padding: 0 1.25rem; line-height: 1.55; }
+    h1 { font-size: 3rem; margin-bottom: 0; }
+    .tagline { font-size: 1.25rem; margin-top: .25rem; }
+    pre { overflow-x: auto; padding: 1rem; border-radius: .4rem; background: #20242b; color: #f8f8f2; }
+    code { font-family: ui-monospace, monospace; }
+    a { color: #5b8def; }
+  </style>
+</head>
+<body>
+  <h1>Grenadine</h1>
+  <p class="tagline">Pomegranate, with the JVM pressed out.</p>
+  <p>Grenadine @VERSION@ is a portable Maven dependency installer compiled
+     with Gloat. It resolves the Maven dependencies in a <code>deps.edn</code>
+     file and installs them into your local Maven repository without Java.</p>
+
+  <h2>Use it</h2>
+  <pre><code>grenadine deps.edn
+grenadine --repo=my-m2 deps.edn
+grenadine --help
+grenadine --version</code></pre>
+
+  <h2>Run without installing</h2>
+  <p>Bash or Zsh:</p>
+  <pre><code>$(source &lt;(curl -s clojurestar.github.io/grenadine/get)) deps.edn</code></pre>
+  <p>PowerShell:</p>
+  <pre><code>&amp; ([scriptblock]::Create((Invoke-RestMethod https://clojurestar.github.io/grenadine/get.ps1))) deps.edn</code></pre>
+  <p>The launcher selects and verifies the current release in a temporary
+     cache. It does not modify <code>PATH</code>.</p>
+
+  <h2>Platforms</h2>
+  <p>Linux amd64, arm64, and armv6; macOS amd64 and arm64; Windows amd64 and
+     arm64; and FreeBSD, OpenBSD, and NetBSD on amd64 and arm64.</p>
+
+  <p><a href="https://github.com/clojurestar/grenadine">Source, documentation,
+     and releases on GitHub</a>.</p>
+</body>
+</html>

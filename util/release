@@ -1,0 +1,128 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+command=${1:?usage: release prepare|publish VERSION}
+version=${2:?usage: release prepare|publish VERSION}
+version=${version#v}
+
+[[ $version =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
+  echo "release: VERSION must have the form X.Y.Z" >&2
+  exit 1
+}
+
+top=$(git rev-parse --show-toplevel)
+changes_file="$top/Changes"
+version_file="$top/VERSION"
+
+has_changes_entry() {
+  grep -q "^- version: $version\$" "$changes_file"
+}
+
+prepare() {
+  if [[ $(< "$version_file") == "$version" ]] && has_changes_entry; then
+    echo "Release v$version is already prepared"
+    return
+  fi
+  [[ -z $(git status --short) ]] || {
+    echo "release: prepare requires a clean worktree" >&2
+    exit 1
+  }
+
+  local previous_tag changes temporary previous_changes
+  previous_tag=$(git tag -l 'v[0-9]*' --sort=-v:refname | head -1)
+  if [[ -n $previous_tag ]]; then
+    changes=$(git log "$previous_tag"..HEAD --format='%s' |
+      grep -v "^Version $version\$" || true)
+  else
+    changes=$(git log HEAD --format='%s')
+  fi
+  temporary=$(mktemp)
+  previous_changes=$(sed '/^# Grenadine release history$/d' "$changes_file")
+  {
+    echo "- version: $version"
+    echo "  date:    $(date)"
+    echo "  changes:"
+    if [[ -n $changes ]]; then
+      while IFS= read -r line; do echo "  - $line"; done <<< "$changes"
+    else
+      echo "  - Release v$version"
+    fi
+    if [[ -n $previous_changes ]]; then
+      echo
+      printf '%s\n' "$previous_changes"
+    fi
+  } > "$temporary"
+  mv "$temporary" "$changes_file"
+  printf '%s\n' "$version" > "$version_file"
+
+  if [[ ${RELEASE_EDIT:-1} != 0 ]]; then
+    "${EDITOR:-vi}" "$changes_file"
+  fi
+  if [[ ${RELEASE_CONFIRM:-1} != 0 ]]; then
+    read -rp "Continue preparing v$version? Enter to continue, Ctrl-C to cancel. "
+  fi
+}
+
+release_notes() {
+  awk -v version="$version" '
+    /^- version:/ { if (found) exit; found = ($3 == version); next }
+    found && /^  - / { sub(/^  - /, "- "); print }
+  ' "$changes_file"
+}
+
+publish() {
+  local branch tag notes_file gh
+  branch=$(git branch --show-current)
+  [[ $branch == main ]] || {
+    echo "release: releases must be made from main, not $branch" >&2
+    exit 1
+  }
+  tag="v$version"
+  [[ -z $(git status --short) ]] || {
+    echo "release: publish requires a clean worktree" >&2
+    exit 1
+  }
+  if [[ $(< "$version_file") != "$version" ]] || ! has_changes_entry; then
+    echo "release: v$version is not represented by VERSION and Changes" >&2
+    exit 1
+  fi
+  if [[ ${RELEASE_SKIP_REMOTE_CHECK:-0} == 0 ]]; then
+    git fetch origin main
+    [[ $(git rev-list --count HEAD..origin/main) == 0 ]] || {
+      echo "release: origin/main contains commits not in this checkout" >&2
+      exit 1
+    }
+  fi
+
+  make test oracle
+  make release-dist VERSION="$version"
+  "$top/.cache/release/bin/linux_amd64/grenadine" --version |
+    grep -qx "grenadine v$version"
+
+  if ! git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+    git tag -a "$tag" -m "Release $tag"
+  fi
+  git push origin HEAD:main
+  git push origin "$tag"
+
+  notes_file="$top/.cache/release-notes-$version.md"
+  release_notes > "$notes_file"
+  gh=${GH:-gh}
+  if "$gh" release view "$tag" --repo clojurestar/grenadine >/dev/null 2>&1; then
+    "$gh" release upload "$tag" --repo clojurestar/grenadine --clobber \
+      "$top"/dist/grenadine-*
+  else
+    "$gh" release create "$tag" --repo clojurestar/grenadine \
+      --title "Grenadine $tag" --notes-file "$notes_file" \
+      "$top"/dist/grenadine-*
+  fi
+  make publish-www
+  echo "Release $tag complete"
+}
+
+case $command in
+  prepare) prepare ;;
+  publish) publish ;;
+  *) echo "release: unknown command '$command'" >&2; exit 1 ;;
+esac
