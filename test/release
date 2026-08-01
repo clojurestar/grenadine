@@ -1,0 +1,114 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+top=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+release="$top/util/release"
+bb=${BB:?BB is required}
+temporary=$(mktemp -d)
+trap 'rm -rf -- "$temporary"' EXIT
+
+current=$(< "$top/VERSION")
+IFS=. read -r major minor patch <<< "$current"
+version="$major.$minor.$((patch + 1))"
+repo="$temporary/repo"
+origin="$temporary/origin.git"
+fake_bin="$temporary/bin"
+secrets="$temporary/publish-secrets.yaml"
+missing_token="$temporary/missing-token.yaml"
+
+mkdir -p "$repo/util" "$fake_bin"
+cp "$top/Changes" "$top/VERSION" "$top/project.clj" "$repo/"
+cp "$release" "$repo/util/release"
+git init --quiet --initial-branch=main "$repo"
+git -C "$repo" config user.name 'Release Test'
+git -C "$repo" config user.email release-test@example.com
+git -C "$repo" add -A
+git -C "$repo" commit --quiet -m Initial
+git init --quiet --bare "$origin"
+git -C "$repo" remote add origin "$origin"
+git -C "$repo" push --quiet --set-upstream origin main
+
+ln -s /bin/false "$fake_bin/make"
+printf 'clojure:\n  user: fixture-user\n  token: fixture-token\n' > "$secrets"
+printf 'clojure:\n  user: fixture-user\n' > "$missing_token"
+
+run_release() {
+  (
+    cd "$repo"
+    PATH="$fake_bin:$PATH" \
+      BB="$bb" \
+      CLOJARS_USERNAME=ignored-incomplete-environment \
+      PUBLISH_SECRETS="$secrets" \
+      RELEASE_SKIP_CLOJARS_GROUP_CHECK=1 \
+      "$release" release "$version"
+  )
+}
+
+expect_failure() {
+  local name=$1
+  shift
+  if "$@" >/dev/null 2>&1; then
+    echo "expected failure: $name" >&2
+    exit 1
+  fi
+}
+
+expect_failure validation-stop run_release
+[[ $(git -C "$repo" log -1 --format=%s) == "Release $version" ]]
+[[ $(< "$repo/VERSION") == "$version" ]]
+[[ $(sed -n \
+  's/^(defproject cc\.clojure\/grenadine "\([^"]*\)".*/\1/p' \
+  "$repo/project.clj") == "$version" ]]
+grep -q "^- version: $version\$" "$repo/Changes"
+changed=$(git -C "$repo" diff-tree --no-commit-id --name-only -r HEAD | sort)
+expected=$(printf '%s\n' Changes VERSION project.clj | sort)
+[[ $changed == "$expected" ]]
+[[ -z $(git -C "$repo" status --short) ]]
+[[ -z $(git -C "$repo" tag -l) ]]
+
+head_before=$(git -C "$repo" rev-parse HEAD)
+set +e
+resume_output=$(run_release 2>&1)
+resume_status=$?
+set -e
+[[ $resume_status -ne 0 ]]
+grep -Fq "Resuming Release $version" <<< "$resume_output"
+[[ $(git -C "$repo" rev-parse HEAD) == "$head_before" ]]
+
+set +e
+missing_output=$(
+  cd "$repo" &&
+    BB="$bb" PUBLISH_SECRETS="$missing_token" \
+      "$release" release "$version" 2>&1
+)
+missing_status=$?
+set -e
+[[ $missing_status -ne 0 ]]
+grep -Fq 'no complete Clojars credentials' <<< "$missing_output"
+if grep -Fq fixture-user <<< "$missing_output"; then
+  echo 'credential value leaked in release error' >&2
+  exit 1
+fi
+
+set +e
+fallback_output=$(
+  cd "$repo" &&
+    PATH="$fake_bin:$PATH" \
+      BB="$bb" \
+      CLOJARS_USERNAME=environment-user \
+      CLOJARS_PASSWORD=environment-token \
+      PUBLISH_SECRETS="$missing_token" \
+      RELEASE_SKIP_CLOJARS_GROUP_CHECK=1 \
+      "$release" release "$version" 2>&1
+)
+fallback_status=$?
+set -e
+[[ $fallback_status -ne 0 ]]
+grep -Fq "Resuming Release $version" <<< "$fallback_output"
+if grep -Eq 'environment-(user|token)' <<< "$fallback_output"; then
+  echo 'environment credential value leaked in release output' >&2
+  exit 1
+fi
+
+echo "release workflow checks passed"

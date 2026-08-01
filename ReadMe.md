@@ -74,6 +74,50 @@ the lock's preferred repository does not contain them. Non-JVM hosts can pass
 source roots while still installing the full dependency graph.
 
 
+## Clojars
+
+Grenadine releases are published as `cc.clojure/grenadine` for use as a
+library:
+
+```clojure
+{:deps {cc.clojure/grenadine {:mvn/version "0.1.1"}}}
+```
+
+Release credentials are read from `~/.publish-secrets` by default, using the
+`.clojure.user` and `.clojure.token` YAML paths:
+
+```yaml
+clojure:
+  user: ingy
+  token: CLOJARS_DEPLOY_TOKEN
+```
+
+`PUBLISH_SECRETS` can name a different file. If complete credentials cannot be
+read from the YAML file, Grenadine falls back to the existing
+`CLOJARS_USERNAME` and `CLOJARS_PASSWORD` environment variables.
+
+From a clean `main` branch synchronized with `origin/main`, run:
+
+```sh
+make release VERSION=0.1.1
+```
+
+The command updates `VERSION`, `project.clj`, and `Changes`; commits those
+three files as `Release 0.1.1`; validates the library JAR and native archives;
+creates the tag; deploys to Clojars; atomically pushes `main` and the tag;
+publishes the GitHub release; and deploys the website. A successful Clojars
+deployment is recorded locally so a later failure can safely resume with the
+same command.
+
+If Clojars reports an ambiguous failure, first verify that the version was
+published. Then record it without redeploying and resume the release:
+
+```sh
+make release-mark-deployed VERSION=0.1.1 DEPLOYED=1
+make release VERSION=0.1.1
+```
+
+
 ## Development
 
 ```sh

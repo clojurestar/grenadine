@@ -16,6 +16,7 @@ export JOLT_CACHE_DIR JOLT_GITLIBS JOLT_LOCAL_REPO
 
 include $M/init.mk
 include $M/clojure.mk
+include $M/lein.mk
 include $M/babashka.mk
 include $M/glojure.mk
 include $M/gloat.mk
@@ -61,11 +62,14 @@ $(GRENADINE): $(SOURCE-STAGE-STAMP) $(GLOAT)
 
 build: $(GRENADINE)
 
+jar: $(LEIN) project.clj
+	lein jar
+
 install: $(GRENADINE)
 	$Q install -d '$(DESTDIR)$(PREFIX)/bin'
 	$Q install -m 0755 '$(GRENADINE)' '$(DESTDIR)$(PREFIX)/bin/grenadine'
 
-test: test-all test-cli test-scripts
+test: test-all test-cli test-scripts test-release
 
 test-clj: $(CLOJURE)
 	$(CLOJURE) -M:test
@@ -93,8 +97,11 @@ oracle: $(CLOJURE)
 test-cli: $(GRENADINE)
 	GRENADINE='$(GRENADINE)' test/cli
 
+test-release: $(BB)
+	BB='$(BB)' test/release
+
 test-scripts: $(SHELLCHECK) $(PWSH)
-	$(SHELLCHECK) util/stage-sources util/release util/release-dist test/cli www/docs/get
+	$(SHELLCHECK) util/stage-sources util/release util/release-dist test/cli test/release www/docs/get
 	$(PWSH) -NoProfile -Command '$$tokens = $$null; $$errors = $$null; [System.Management.Automation.Language.Parser]::ParseFile("www/docs/get.ps1", [ref] $$tokens, [ref] $$errors) > $$null; if ($$errors.Count) { $$errors | Out-String | Write-Error; exit 1 }'
 
 site:
@@ -118,9 +125,14 @@ release-dist: $(SOURCE-STAGE-STAMP) $(GLOAT)
 	  '$(VERSION)' '$(GLOAT)' '$(SOURCE-STAGE)' \
 	  '$(CURDIR)' '$(DIST)' '$(RELEASE-BUILD)'
 
-release: $(GH)
+release: $(GH) $(BB)
 	@$(if $(filter command line,$(origin VERSION)),,\
 	  $(error VERSION is required on the command line))
-	$Q GH='$(GH)' '$(RELEASE)' publish '$(VERSION)'
+	$Q BB='$(BB)' GH='$(GH)' '$(RELEASE)' release '$(VERSION)'
+
+release-mark-deployed:
+	@$(if $(and $(filter 1,$(DEPLOYED)),$(filter command line,$(origin VERSION))),,\
+	  $(error usage: make release-mark-deployed VERSION=x.y.z DEPLOYED=1))
+	$Q '$(RELEASE)' mark-deployed '$(VERSION)'
 
 MAKES-CLEAN += .cache/clojure .cache/jolt .cache/source-stage .cache/release .cpcache target bin dist www/site
