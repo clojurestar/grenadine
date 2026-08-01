@@ -1,4 +1,21 @@
-# Grenadine release history
+- version: 0.1.1
+  date:    Sat Aug  1 17:07:43 EDT 2026
+  changes:
+  - Isolate release tests from Clojars credentials
+  - Test CLI version from release metadata
+  - Accept effective Git release identities
+  - Publish library releases to Clojars
+  - Present Grenadine as a portable library
+  - Build website with MkDocs
+  - Support remote deps sources
+  - Improve dependency installation reporting
+  - Improve dependency installation output
+  - Move native dependency host into Grenadine
+  - Add native Grenadine release workflow
+  - Support portable source selection
+  - Honor Grenadine local repository environment
+  - Implement portable Maven dependency resolver
+
 
 - version: 0.1.0
   changes:
