@@ -4,6 +4,9 @@ Grenadine
 Grenadine is a portable Maven dependency resolver in pure Clojure:
 “pomegranate, with the JVM pressed out.”
 
+See the [Grenadine website](https://clojurestar.github.io/grenadine/) for the
+published documentation and install helpers.
+
 The resolver core runs unchanged on JVM Clojure, Babashka, Glojure, Jolt, and
 let-go. It parses and builds effective POMs, walks dependency graphs, supports
 newest / Maven-nearest / tools.deps mediation, emits deterministic locks,
@@ -44,7 +47,7 @@ On Bash and Zsh, the current release can also be downloaded, verified, and run
 from a temporary cache without installing it on `PATH`:
 
 ```sh
-$(source <(curl -s clojurestar.github.io/grenadine/get)) deps.edn
+$(source <(curl -sL clojurestar.github.io/grenadine/get)) deps.edn
 ```
 
 PowerShell users can run:

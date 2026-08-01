@@ -79,7 +79,7 @@ On Bash and Zsh, the current release can be downloaded, verified, and run from
 a temporary cache without installing it on `PATH`:
 
 ```sh
-$(source <(curl -s clojurestar.github.io/grenadine/get)) deps.edn
+$(source <(curl -sL clojurestar.github.io/grenadine/get)) deps.edn
 ```
 
 PowerShell users can run:
