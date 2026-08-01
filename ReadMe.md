@@ -73,10 +73,11 @@ make oracle
 `test-all` runs the same portable suite on all five runtimes. `oracle` compares
 Grenadine with JVM tools.deps and Maven `ComparableVersion`.
 
-The Gloat-compiled command uses Glojure's native Grenadine effect host. JVM
-Clojure and Babashka retain their existing hosts. Jolt and let-go already run
-the complete pure core and have dependency facades; their native effect hosts
-still need the remaining runtime primitives described in the plan.
+The Gloat-compiled command includes its Glojure effect host from this
+repository and builds against released Glojure. JVM Clojure and Babashka
+retain their existing hosts. Jolt and let-go already run the complete pure
+core and have dependency facades; their native effect hosts still need the
+remaining runtime primitives described in the plan.
 
 
 ## Copyright and License

@@ -1,6 +1,7 @@
 (ns grenadine.cli
   (:require [grenadine.build-info :as build-info]
             [grenadine.core :as grenadine]
+            [grenadine.host.glojure :as glojure-host]
             [grenadine.lock :as lock]))
 
 (def usage
@@ -88,19 +89,13 @@
         (fail! (str file " :deps must be a map")))
       config)))
 
-(defn- native-host []
-  (let [host-fn (ns-resolve 'glojure.deps.host 'host)]
-    (when-not host-fn
-      (fail! "this Glojure runtime does not provide the native Grenadine host"))
-    (host-fn)))
-
 (defn- install! [{:keys [file repo]}]
   (let [config (read-config file)
         local-repo (or repo (:mvn/local-repo config))
         result
         (grenadine/install!
          (:deps config)
-         (cond-> {:host (native-host)
+         (cond-> {:host (glojure-host/host)
                   :repos (configured-repos config)
                   :mediation :tools-deps}
            local-repo (assoc :local-repo local-repo)))]

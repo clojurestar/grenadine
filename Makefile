@@ -3,10 +3,10 @@ M := .cache/makes
 $(shell [ -d '$M' ] || git clone -q $R '$M')
 
 MAKES_LOCAL_DIR ?= $(CURDIR)/.cache/local
-GLOAT-VERSION ?= 0.1.69
-GLOAT-DIR ?= $(or $(GLOAT_DIR),$(wildcard $(CURDIR)/../gloat),$(MAKES_LOCAL_DIR)/cache/gloat-$(GLOAT-VERSION))
-GLOJURE_DIR ?= $(wildcard $(CURDIR)/../glojure)
-export GLOJURE_DIR
+GLOAT-VERSION ?= 0.1.68
+ifdef GLOAT_DIR
+GLOAT-DIR := $(GLOAT_DIR)
+endif
 CLJ_CONFIG := $(CURDIR)/.cache/clojure
 export CLJ_CONFIG
 JOLT_CACHE_DIR := $(CURDIR)/.cache/jolt
@@ -37,7 +37,7 @@ RELEASE-DIST := $(CURDIR)/util/release-dist
 DIST := $(CURDIR)/dist
 RELEASE-BUILD := $(CURDIR)/.cache/release
 PREFIX ?= $(if $(filter 0,$(shell id -u)),/usr/local,$(HOME)/.local)
-GRENADINE-SOURCES := $(wildcard src/grenadine/*.clj src/grenadine/*.cljc)
+GRENADINE-SOURCES := $(wildcard src/grenadine/*.clj src/grenadine/*.cljc src/grenadine/host/*.clj)
 
 default:: build
 
