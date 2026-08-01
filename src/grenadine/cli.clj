@@ -2,14 +2,15 @@
   (:require [grenadine.build-info :as build-info]
             [grenadine.core :as grenadine]
             [grenadine.host.glojure :as glojure-host]
-            [grenadine.lock :as lock]))
+            [grenadine.lock :as lock]
+            [grenadine.source :as source]))
 
 (def usage
   (str
-   "Usage: grenadine [OPTIONS] DEPS-FILE\n"
+   "Usage: grenadine [OPTIONS] DEPS-SOURCE\n"
    "       grenadine --help\n"
    "       grenadine --version\n\n"
-   "Install the Maven dependencies in DEPS-FILE.\n\n"
+   "Install the Maven dependencies in a local or remote DEPS-SOURCE.\n\n"
    "Options:\n"
    "  -R, --repository DIR  Install into this Maven repository\n"
    "  -q, --quiet           Suppress non-error output\n"
@@ -76,21 +77,25 @@
         extras (sort (remove (set preferred) (keys repos)))]
     (mapv repos (concat preferred extras))))
 
-(defn- read-config [file]
-  (let [[content error] (os.ReadFile file)]
-    (when error
-      (fail! (str "cannot read " file ": " (fmt.Sprint error))))
+(defn- read-config [input host]
+  (let [content
+        (if (source/remote? input)
+          (source/fetch-text host input)
+          (let [[content error] (os.ReadFile input)]
+            (when error
+              (fail! (str "cannot read " input ": " (fmt.Sprint error))))
+            (go/string content)))]
     (let [config
           (try
-            (read-string (go/string content))
+            (read-string content)
             (catch Exception error
-              (fail! (str "cannot parse " file ": " (fmt.Sprint error)))))]
+              (fail! (str "cannot parse " input ": " (fmt.Sprint error)))))]
       (when-not (map? config)
-        (fail! (str file " must contain an EDN map")))
+        (fail! (str input " must contain an EDN map")))
       (when-not (contains? config :deps)
-        (fail! (str file " does not contain :deps")))
+        (fail! (str input " does not contain :deps")))
       (when-not (map? (:deps config))
-        (fail! (str file " :deps must be a map")))
+        (fail! (str input " :deps must be a map")))
       config)))
 
 (defn- print-installed!
@@ -108,12 +113,13 @@
                        "  Total: " (+ installed already)))))
 
 (defn- install! [{:keys [file repository quiet]}]
-  (let [config (read-config file)
+  (let [host (glojure-host/host)
+        config (read-config file host)
         local-repo (or repository (:mvn/local-repo config))
         result
         (grenadine/install!
          (:deps config)
-         (cond-> {:host (glojure-host/host)
+         (cond-> {:host host
                   :repos (configured-repos config)
                   :mediation :tools-deps}
            local-repo (assoc :local-repo local-repo)
@@ -132,7 +138,7 @@
         help (fmt.Fprintln os.Stdout usage)
         version (fmt.Fprintln os.Stdout
                               (str "grenadine v" build-info/version))
-        (nil? file) (fail! "a deps file is required")
+        (nil? file) (fail! "a deps source is required")
         :else (install! options)))
     (catch Exception error
       (fmt.Fprintln os.Stderr (str "grenadine: " (fmt.Sprint error)))

@@ -5,3 +5,4 @@
   - Add the native Grenadine dependency installer.
   - Add cross-platform release archives and one-shot launchers.
   - Stream newly installed dependencies, report totals, and add quiet mode.
+  - Accept remote deps.edn URLs, including GitHub blob links.

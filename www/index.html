@@ -18,8 +18,9 @@
   <h1>Grenadine</h1>
   <p class="tagline">Pomegranate, with the JVM pressed out.</p>
   <p>Grenadine @VERSION@ is a portable Maven dependency installer compiled
-     with Gloat. It resolves the Maven dependencies in a <code>deps.edn</code>
-     file and installs them into your local Maven repository without Java.</p>
+     with Gloat. It resolves the Maven dependencies in a local or remote
+     <code>deps.edn</code> source and installs them into your local Maven
+     repository without Java.</p>
 
   <h2>Use it</h2>
   <pre><code>grenadine deps.edn
@@ -27,6 +28,9 @@ grenadine --repository=my-m2 deps.edn
 grenadine --quiet deps.edn
 grenadine --help
 grenadine --version</code></pre>
+  <p>HTTP and HTTPS URLs are accepted directly, including GitHub
+     <code>blob</code> links:</p>
+  <pre><code>grenadine --repository=my-m2 https://github.com/yaml/yamlscript/blob/main/core/deps.edn</code></pre>
   <p>Grenadine lists each newly installed dependency immediately, then prints
      installed, already-present, and total counts. Quiet mode suppresses this
      non-error output.</p>

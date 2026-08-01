@@ -5,6 +5,7 @@
             [grenadine.pom-test]
             [grenadine.repo-test]
             [grenadine.runtime-test]
+            [grenadine.source-test]
             [grenadine.version-test]
             [grenadine.xml-test]))
 
@@ -26,6 +27,7 @@
                            'grenadine.graph-test
                            'grenadine.lock-test
                            'grenadine.repo-test
+                           'grenadine.source-test
                            'grenadine.runtime-test)]
        (when (pos? (+ fail error))
          (throw (ex-info "Grenadine tests failed"

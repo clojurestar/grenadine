@@ -13,8 +13,8 @@ non-JVM runtimes.
 
 ## Command line
 
-The native `grenadine` command installs the Maven dependencies from a
-`deps.edn` file without Java:
+The native `grenadine` command installs the Maven dependencies from a local or
+remote `deps.edn` source without Java:
 
 ```sh
 grenadine deps.edn
@@ -24,11 +24,19 @@ grenadine --help
 grenadine --version
 ```
 
+HTTP and HTTPS URLs are accepted directly. GitHub `blob` links are
+automatically fetched as raw content:
+
+```sh
+grenadine --repository=my-m2 \
+  https://github.com/yaml/yamlscript/blob/main/core/deps.edn
+```
+
 By default, Grenadine prints each dependency immediately after installing it,
 then reports installed, already-present, and total counts. Already-present
 dependencies are not listed individually. Use `-q` or `--quiet` to suppress
 non-error output. The repository used by `-R` or `--repository` takes
-precedence over `:mvn/local-repo` in the deps file,
+precedence over `:mvn/local-repo` in the deps source,
 `GRENADINE_LOCAL_REPOSITORY`, and the default
 `$HOME/.m2/repository`, in that order.
 
