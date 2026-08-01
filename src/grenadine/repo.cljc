@@ -130,6 +130,23 @@
   (when-let [repo (get (:repos lock) (:repo artifact))]
     (remote-url repo (:path artifact))))
 
+(defn- fetch-artifact
+  [host lock artifact]
+  (let [preferred (:repo artifact)
+        indices (concat [preferred]
+                        (remove #(= preferred %)
+                                (range (count (:repos lock)))))]
+    (loop [remaining indices last-response nil]
+      (if-let [repo-index (first remaining)]
+        (if-let [repo (get (:repos lock) repo-index)]
+          (let [url (remote-url repo (:path artifact))
+                response ((:http-get host) url)]
+            (if (successful? response)
+              {:repo repo-index :url url :response response}
+              (recur (next remaining) response)))
+          (recur (next remaining) last-response))
+        {:response last-response}))))
+
 (defn fetch-lock!
   "Install every artifact in a lock.
 
@@ -152,9 +169,13 @@
       (if-let [artifact (first remaining)]
         (let [target (str base "/" (:path artifact))
               present? ((:exists? host) target)
-              url (artifact-url lock artifact)
-              response (when (and (not present?) url)
-                         ((:http-get host) url))
+              download (when-not present?
+                         (fetch-artifact host lock artifact))
+              url (or (:url download) (artifact-url lock artifact))
+              response (:response download)
+              artifact (if-let [repo-index (:repo download)]
+                         (assoc artifact :repo repo-index)
+                         artifact)
               bytes (if present?
                       ((:read-bytes host) target)
                       (when (successful? response) (:body response)))]
@@ -202,12 +223,20 @@
 (defn prepare-source-roots!
   "Extract installed JARs into digest-keyed source directories.
 
-  The host owns safe, atomic ZIP extraction. Returns roots in lock order."
-  [lock {:keys [host] :as opts}]
+  The host owns safe, atomic ZIP extraction. Returns roots in lock order.
+  When `:source-libs` is supplied, only those library symbols are extracted."
+  [lock {:keys [host source-libs] :as opts}]
   (require-host host
                 [:read-bytes :digest :exists? :extract-jar! :home-dir])
-  (let [base (trim-trailing-slashes (local-repo opts))]
-    (loop [remaining (:artifacts lock) roots [] failed []]
+  (let [base (trim-trailing-slashes (local-repo opts))
+        artifacts
+        (if source-libs
+          (filter
+           (fn [{:keys [group artifact]}]
+             (contains? source-libs (symbol group artifact)))
+           (:artifacts lock))
+          (:artifacts lock))]
+    (loop [remaining artifacts roots [] failed []]
       (if-let [artifact (first remaining)]
         (let [jar (str base "/" (:path artifact))]
           (if-not ((:exists? host) jar)

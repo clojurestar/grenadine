@@ -22,6 +22,10 @@ export GRENADINE_LOCAL_REPOSITORY=/path/to/maven/repository
 ```
 
 An explicit `:local-repo` option takes precedence over the environment.
+Artifacts are tried against each configured remote repository in order when
+the lock's preferred repository does not contain them. Non-JVM hosts can pass
+`:source-libs` as a set of library symbols to extract and expose only selected
+source roots while still installing the full dependency graph.
 
 
 ## Development
@@ -34,9 +38,9 @@ make oracle
 `test-all` runs the same portable suite on all five runtimes. `oracle` compares
 Grenadine with JVM tools.deps and Maven `ComparableVersion`.
 
-The currently usable end-to-end host implementations are JVM Clojure and
-Babashka. Glojure, Jolt, and let-go already run the complete pure core and have
-dependency facades; their native effect hosts need the remaining runtime
+The currently usable end-to-end host implementations are JVM Clojure,
+Babashka, and Glojure. Jolt and let-go already run the complete pure core and
+have dependency facades; their native effect hosts need the remaining runtime
 primitives described in the plan.
 
 

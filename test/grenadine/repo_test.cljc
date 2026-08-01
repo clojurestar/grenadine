@@ -82,6 +82,27 @@
     (is (= :checksum-mismatch (get-in result [:failed 0 :reason])))
     (is (not (contains? @files "/m2/demo/a/1/a-1.jar")))))
 
+(deftest falls-back-to-another-repository
+  (let [central "https://central.example/demo/a/1/a-1.jar"
+        clojars "https://clojars.example/demo/a/1/a-1.jar"
+        {:keys [host files]}
+        (fake-host
+         {}
+         {central {:status 404}
+          clojars {:status 200 :body "bytes"}
+          (str clojars ".sha1") {:status 200 :body "sha1-bytes"}})
+        result
+        (repo/fetch-lock!
+         {:lock/version 1
+          :repos ["https://central.example" "https://clojars.example"]
+          :artifacts
+          [{:group "demo" :artifact "a" :version "1"
+            :path "demo/a/1/a-1.jar" :repo 0}]}
+         {:host host :local-repo "/m2"})]
+    (is (empty? (:failed result)))
+    (is (= 1 (get-in result [:lock :artifacts 0 :repo])))
+    (is (= "bytes" (get @files "/m2/demo/a/1/a-1.jar")))))
+
 (deftest prepares-digest-keyed-source-roots
   (let [{:keys [host files]}
         (fake-host {"/m2/demo/a/1/a-1.jar" "bytes"} {})
@@ -93,3 +114,22 @@
         root "/m2/demo/a/1/a-1.jar.grenadine/locked-sha"]
     (is (= [root] (:roots result)))
     (is (contains? @files (str root "/.grenadine-complete")))))
+
+(deftest selects-source-libraries
+  (let [{:keys [host files]}
+        (fake-host
+         {"/m2/demo/a/1/a-1.jar" "a"
+          "/m2/demo/b/1/b-1.jar" "b"}
+         {})
+        result
+        (repo/prepare-source-roots!
+         {:artifacts
+          [{:group "demo" :artifact "a" :path "demo/a/1/a-1.jar"}
+           {:group "demo" :artifact "b" :path "demo/b/1/b-1.jar"}]}
+         {:host host
+          :local-repo "/m2"
+          :source-libs #{'demo/b}})]
+    (is (= 1 (count (:roots result))))
+    (is (re-find #"/demo/b/" (first (:roots result))))
+    (is (not-any? #(re-find #"/demo/a/.*\.grenadine/" %)
+                  (keys @files)))))
