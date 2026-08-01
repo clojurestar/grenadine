@@ -3,6 +3,9 @@
 set -euo pipefail
 
 grenadine=${GRENADINE:?GRENADINE is required}
+top=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+version=$(< "$top/VERSION")
+version_pattern=${version//./\\.}
 temporary=$(mktemp -d)
 trap 'rm -rf "$temporary"' EXIT
 
@@ -72,7 +75,7 @@ write_deps() {
   fi
 }
 
-check "version" 0 '^grenadine v0\.1\.0$' "$grenadine" --version
+check "version" 0 "^grenadine v${version_pattern}$" "$grenadine" --version
 check "help" 0 '^Usage: grenadine' "$grenadine" --help
 check "missing source argument" 1 'a deps source is required' "$grenadine"
 check "unknown option" 1 'unknown option: --wat' "$grenadine" --wat
