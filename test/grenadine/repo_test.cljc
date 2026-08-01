@@ -54,6 +54,7 @@
          {}
          {url {:status 200 :body "bytes"}
           (str url ".sha1") {:status 200 :body "sha1-bytes  a-1.jar"}})
+        installed (atom [])
         result
         (repo/fetch-lock!
          {:lock/version 1
@@ -61,13 +62,41 @@
           :artifacts
           [{:group "demo" :artifact "a" :version "1"
             :path "demo/a/1/a-1.jar" :repo 0}]}
-         {:host host :local-repo "/m2"})]
+         {:host host
+          :local-repo "/m2"
+          :on-install
+          (fn [artifact]
+            (swap! installed conj
+                   [artifact (get @files "/m2/demo/a/1/a-1.jar")]))})]
     (is (empty? (:failed result)))
     (is (= 1 (count (:fetched result))))
     (is (= "bytes" (get @files "/m2/demo/a/1/a-1.jar")))
+    (is (= [[{:group "demo" :artifact "a" :version "1"
+              :path "demo/a/1/a-1.jar" :repo 0}
+             "bytes"]]
+           @installed))
     (is (= {:sha256 "sha256-bytes" :size 5}
            (select-keys (first (get-in result [:lock :artifacts]))
                         [:sha256 :size])))))
+
+(deftest does-not-notify-or-warn-for-cached-artifacts
+  (let [path "/m2/demo/a/1/a-1.jar"
+        {:keys [host]} (fake-host {path "bytes"} {})
+        installed (atom [])
+        result
+        (repo/fetch-lock!
+         {:lock/version 1
+          :repos ["https://repo.example"]
+          :artifacts
+          [{:group "demo" :artifact "a" :version "1"
+            :path "demo/a/1/a-1.jar" :repo 0}]}
+         {:host host
+          :local-repo "/m2"
+          :on-install #(swap! installed conj %)})]
+    (is (empty? (:fetched result)))
+    (is (= 1 (count (:cached result))))
+    (is (empty? (:warnings result)))
+    (is (empty? @installed))))
 
 (deftest rejects-checksum-mismatch
   (let [url "https://repo.example/demo/a/1/a-1.jar"

@@ -252,6 +252,14 @@
             (recur (+ end 2) stack roots)
             (xml-error source i "Unterminated XML processing instruction"))
 
+          (starts-at? source i "<![CDATA[")
+          (if-let [end (find-token source (+ i 9) "]]>")]
+            (let [text (subs source (+ i 9) end)
+                  [next-stack next-roots]
+                  (append-content stack roots text)]
+              (recur (+ end 3) next-stack next-roots))
+            (xml-error source i "Unterminated XML CDATA section"))
+
           (starts-at? source i "</")
           (let [[name after-name] (parse-name source (+ i 2))
                 close (skip-whitespace source after-name)]
@@ -270,7 +278,7 @@
 
           (starts-at? source i "<!")
           (xml-error source i
-                     "XML declarations, DOCTYPE, and CDATA are not supported")
+                     "DOCTYPE and other XML declarations are not supported")
 
           :else
           (let [[node next-i self-closing?] (parse-open-tag source (inc i))]

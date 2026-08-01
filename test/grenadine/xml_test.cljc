@@ -46,6 +46,20 @@
      :content [{:tag :relativePath :attrs {} :content []}]}
     (xml/parse "<project><relativePath /></project>"))))
 
+(deftest handles-cdata-as-literal-text
+  (is
+   (=
+    {:tag :project
+     :attrs {}
+     :content
+     [{:tag :description
+       :attrs {}
+       :content ["<tag>&amp; is not decoded"]}]}
+    (xml/parse
+     (str "<project><description><![CDATA["
+          "<tag>&amp; is not decoded"
+          "]]></description></project>")))))
+
 (deftest rejects-unsafe-and-malformed-input
   (testing "external declarations"
     (is (throws? (xml/parse "<!DOCTYPE project><project/>"))))
@@ -54,4 +68,6 @@
   (testing "unknown entities"
     (is (throws? (xml/parse "<project>&nope;</project>"))))
   (testing "duplicate attributes"
-    (is (throws? (xml/parse "<project x=\"1\" x=\"2\"/>")))))
+    (is (throws? (xml/parse "<project x=\"1\" x=\"2\"/>"))))
+  (testing "unterminated CDATA"
+    (is (throws? (xml/parse "<project><![CDATA[broken</project>")))))

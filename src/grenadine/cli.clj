@@ -94,10 +94,18 @@
       config)))
 
 (defn- print-installed!
+  [{:keys [group artifact version]}]
+  (fmt.Fprintln os.Stdout
+                (str "Installed " group "/" artifact " " version)))
+
+(defn- print-summary!
   [result]
-  (doseq [{:keys [group artifact version]} (get-in result [:lock :artifacts])]
+  (let [installed (count (:fetched result))
+        already (count (:cached result))]
     (fmt.Fprintln os.Stdout
-                  (str "Installed " group "/" artifact " " version))))
+                  (str "=> Installed: " installed
+                       "  Already: " already
+                       "  Total: " (+ installed already)))))
 
 (defn- install! [{:keys [file repository quiet]}]
   (let [config (read-config file)
@@ -108,12 +116,13 @@
          (cond-> {:host (glojure-host/host)
                   :repos (configured-repos config)
                   :mediation :tools-deps}
-           local-repo (assoc :local-repo local-repo)))]
+           local-repo (assoc :local-repo local-repo)
+           (not quiet) (assoc :on-install print-installed!)))]
     (when-not quiet
-      (print-installed! result)
       (doseq [warning (:warnings result)]
         (fmt.Fprintln os.Stderr
-                      (str "grenadine: warning: " (pr-str warning)))))))
+                      (str "grenadine: warning: " (pr-str warning))))
+      (print-summary! result))))
 
 (defn -main [& argv]
   (try

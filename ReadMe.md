@@ -24,9 +24,11 @@ grenadine --help
 grenadine --version
 ```
 
-By default, Grenadine prints every resolved dependency it installs. Use
-`-q` or `--quiet` to suppress non-error output. The repository used by `-R` or
-`--repository` takes precedence over `:mvn/local-repo` in the deps file,
+By default, Grenadine prints each dependency immediately after installing it,
+then reports installed, already-present, and total counts. Already-present
+dependencies are not listed individually. Use `-q` or `--quiet` to suppress
+non-error output. The repository used by `-R` or `--repository` takes
+precedence over `:mvn/local-repo` in the deps file,
 `GRENADINE_LOCAL_REPOSITORY`, and the default
 `$HOME/.m2/repository`, in that order.
 

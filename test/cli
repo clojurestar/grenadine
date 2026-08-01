@@ -82,9 +82,9 @@ deps_file="$temporary/deps file.edn"
 explicit_repo="$temporary/explicit repo"
 seed_repo "$explicit_repo"
 write_deps "$deps_file"
-check "long repository option" 0 '^Installed org\.example/demo 1\.0\.0$' \
+check "long repository option" 0 '^=> Installed: 0  Already: 1  Total: 1$' \
   "$grenadine" "--repository=$explicit_repo" "$deps_file"
-check "short repository option" 0 '^Installed org\.example/demo 1\.0\.0$' \
+check "short repository option" 0 '^=> Installed: 0  Already: 1  Total: 1$' \
   "$grenadine" -R "$explicit_repo" "$deps_file"
 check_empty "short quiet option" 0 \
   "$grenadine" -q -R "$explicit_repo" "$deps_file"
@@ -94,13 +94,13 @@ check_empty "long quiet option" 0 \
 file_repo="$temporary/file repo"
 seed_repo "$file_repo"
 write_deps "$deps_file" "$file_repo"
-check "deps file repository" 0 'unverified-artifact' \
+check "deps file repository" 0 '^=> Installed: 0  Already: 1  Total: 1$' \
   "$grenadine" "$deps_file"
 
 environment_repo="$temporary/environment repo"
 seed_repo "$environment_repo"
 write_deps "$deps_file"
-check "environment repository" 0 'unverified-artifact' \
+check "environment repository" 0 '^=> Installed: 0  Already: 1  Total: 1$' \
   env GRENADINE_LOCAL_REPOSITORY="$environment_repo" \
   "$grenadine" "$deps_file"
 

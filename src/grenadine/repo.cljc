@@ -154,7 +154,7 @@
   SHA-1 sidecar is used when available. The returned `:lock` is enriched with
   computed SHA-256 and size values even though those fields remain optional in
   accepted input locks."
-  [lock {:keys [host] :as opts}]
+  [lock {:keys [host on-install] :as opts}]
   (require-host host
                 [:http-get :read-bytes :write-bytes! :bytes->utf8
                  :digest :byte-count :exists? :mkdirs! :atomic-move!
@@ -202,14 +202,16 @@
                        warnings)
                 (do
                   (when-not present?
-                    (write-atomically! host target bytes))
+                    (write-atomically! host target bytes)
+                    (when (fn? on-install)
+                      (on-install artifact)))
                   (recur
                    (next remaining)
                    (conj enriched (merge artifact (:actual verification)))
                    (if present? fetched (conj fetched artifact))
                    (if present? (conj cached artifact) cached)
                    failed
-                   (if (:verified-by verification)
+                   (if (or present? (:verified-by verification))
                      warnings
                      (conj warnings
                            {:artifact artifact

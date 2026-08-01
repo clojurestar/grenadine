@@ -63,6 +63,8 @@
       {:classpath (lock/lock->classpath
                    final-lock
                    {:local-repo (repo/local-repo opts)})
+       :fetched (:fetched fetched)
+       :cached (:cached fetched)
        :source-roots (:roots extraction)
        :lock final-lock
        :resolution resolution
