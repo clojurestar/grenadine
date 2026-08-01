@@ -41,7 +41,8 @@ printf 'clojure:\n  user: fixture-user\n' > "$missing_token"
 run_release() {
   (
     cd "$repo"
-    PATH="$fake_bin:$PATH" \
+    env -u CLOJARS_USERNAME -u CLOJARS_PASSWORD \
+      PATH="$fake_bin:$PATH" \
       BB="$bb" \
       CLOJARS_USERNAME=ignored-incomplete-environment \
       PUBLISH_SECRETS="$secrets" \
@@ -84,7 +85,8 @@ grep -Fq "Resuming Release $version" <<< "$resume_output"
 set +e
 missing_output=$(
   cd "$repo" &&
-    BB="$bb" PUBLISH_SECRETS="$missing_token" \
+    env -u CLOJARS_USERNAME -u CLOJARS_PASSWORD \
+      BB="$bb" PUBLISH_SECRETS="$missing_token" \
       "$release" release "$version" 2>&1
 )
 missing_status=$?
