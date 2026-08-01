@@ -25,9 +25,14 @@ git -C "$repo" config user.name 'Release Test'
 git -C "$repo" config user.email release-test@example.com
 git -C "$repo" add -A
 git -C "$repo" commit --quiet -m Initial
+git -C "$repo" config --unset user.name
 git init --quiet --bare "$origin"
 git -C "$repo" remote add origin "$origin"
 git -C "$repo" push --quiet --set-upstream origin main
+
+# Effective identities need not come from an explicit user.name config key.
+export GIT_AUTHOR_NAME='Release Test'
+export GIT_COMMITTER_NAME='Release Test'
 
 ln -s /bin/false "$fake_bin/make"
 printf 'clojure:\n  user: fixture-user\n  token: fixture-token\n' > "$secrets"

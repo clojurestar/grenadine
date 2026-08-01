@@ -162,11 +162,11 @@ validate_git_context() {
     echo "release: release requires a clean worktree" >&2
     exit 1
   }
-  [[ -n $(git config user.name || true) ]] &&
-    [[ -n $(git config user.email || true) ]] || {
-      echo "release: git user.name and user.email must be configured" >&2
+  if ! git var GIT_AUTHOR_IDENT >/dev/null 2>&1 ||
+     ! git var GIT_COMMITTER_IDENT >/dev/null 2>&1; then
+      echo "release: Git author and committer identities must be available" >&2
       exit 1
-    }
+  fi
   git remote get-url origin >/dev/null 2>&1 || {
     echo "release: git remote origin is not configured" >&2
     exit 1
