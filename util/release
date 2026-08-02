@@ -29,6 +29,29 @@ project_version() {
     "$project_file"
 }
 
+version_reference_files() {
+  git grep -IlF "$1" -- . ':(exclude)Changes' || true
+}
+
+release_files() {
+  {
+    echo Changes
+    version_reference_files "$version"
+  } | sort -u
+}
+
+bump_version_references() {
+  local current=$1 file temporary pattern
+  pattern=${current//./\\.}
+  while IFS= read -r file; do
+    [[ -n $file ]] || continue
+    temporary=$(mktemp)
+    cp -p "$file" "$temporary"
+    sed "s/$pattern/$version/g" "$file" > "$temporary"
+    mv "$temporary" "$file"
+  done < <(version_reference_files "$current")
+}
+
 set_project_version() {
   local temporary
   temporary=$(mktemp)
@@ -59,7 +82,12 @@ prepare() {
     exit 1
   }
 
-  local previous_tag changes temporary previous_changes
+  local current previous_tag changes temporary previous_changes
+  current=$(< "$version_file")
+  [[ $(project_version) == "$current" ]] || {
+    echo "release: VERSION and project.clj do not agree" >&2
+    exit 1
+  }
   previous_tag=$(git tag -l 'v[0-9]*' --sort=-v:refname | head -1)
   if [[ -n $previous_tag ]]; then
     changes=$(git log "$previous_tag"..HEAD --format='%s' |
@@ -84,8 +112,12 @@ prepare() {
     fi
   } > "$temporary"
   mv "$temporary" "$changes_file"
-  printf '%s\n' "$version" > "$version_file"
-  set_project_version
+  bump_version_references "$current"
+
+  if git grep -qF "$current" -- . ':(exclude)Changes'; then
+    echo "release: failed to replace every current-version reference" >&2
+    exit 1
+  fi
 
   if [[ ${RELEASE_EDIT:-1} != 0 ]]; then
     "${EDITOR:-vi}" "$changes_file"
@@ -109,7 +141,7 @@ release_commit_ready() {
   [[ $(project_version) == "$version" ]] || return 1
   [[ $(git log -1 --format=%s) == "Release $version" ]] || return 1
   changed=$(git diff-tree --no-commit-id --name-only -r HEAD | sort)
-  expected=$(printf '%s\n' Changes VERSION project.clj | sort)
+  expected=$(release_files)
   [[ $changed == "$expected" ]]
 }
 
@@ -250,9 +282,9 @@ create_release_commit() {
   local changed expected
   RELEASE_EDIT=0 RELEASE_CONFIRM=0 prepare
   changed=$(git diff --name-only | sort)
-  expected=$(printf '%s\n' Changes VERSION project.clj | sort)
+  expected=$(release_files)
   [[ $changed == "$expected" ]] || {
-    echo "release: version bump must change only Changes, VERSION, and project.clj" >&2
+    echo "release: version bump changed an unexpected set of files" >&2
     exit 1
   }
   [[ -z $(git ls-files --others --exclude-standard) ]] || {
@@ -260,7 +292,9 @@ create_release_commit() {
     exit 1
   }
   git diff --check
-  git add Changes VERSION project.clj
+  while IFS= read -r file; do
+    git add -- "$file"
+  done <<< "$expected"
   git commit -m "Release $version"
   release_commit_ready || {
     echo "release: generated release commit is invalid" >&2

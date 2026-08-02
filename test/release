@@ -17,8 +17,11 @@ fake_bin="$temporary/bin"
 secrets="$temporary/publish-secrets.yaml"
 missing_token="$temporary/missing-token.yaml"
 
-mkdir -p "$repo/util" "$fake_bin"
-cp "$top/Changes" "$top/VERSION" "$top/project.clj" "$repo/"
+mkdir -p "$repo/util" "$repo/www/docs" "$fake_bin"
+cp "$top/Changes" "$top/VERSION" "$top/project.clj" "$top/ReadMe.md" \
+  "$repo/"
+cp "$top/www/docs/getting-started.md" "$top/www/docs/installation.md" \
+  "$repo/www/docs/"
 cp "$release" "$repo/util/release"
 git init --quiet --initial-branch=main "$repo"
 git -C "$repo" config user.name 'Release Test'
@@ -67,8 +70,21 @@ expect_failure validation-stop run_release
   's/^(defproject cc\.clojure\/grenadine "\([^"]*\)".*/\1/p' \
   "$repo/project.clj") == "$version" ]]
 grep -q "^- version: $version\$" "$repo/Changes"
+if git -C "$repo" grep -qF "$current" -- . ':(exclude)Changes'; then
+  echo 'old version remains outside Changes' >&2
+  exit 1
+fi
+grep -Fq "cc.clojure/grenadine {:mvn/version \"$version\"}" \
+  "$repo/ReadMe.md"
+grep -Fq "cc.clojure/grenadine \"$version\"" "$repo/ReadMe.md"
+grep -Fq "cc.clojure/grenadine {:mvn/version \"$version\"}" \
+  "$repo/www/docs/getting-started.md"
+grep -Fq "cc.clojure/grenadine {:mvn/version \"$version\"}" \
+  "$repo/www/docs/installation.md"
 changed=$(git -C "$repo" diff-tree --no-commit-id --name-only -r HEAD | sort)
-expected=$(printf '%s\n' Changes VERSION project.clj | sort)
+expected=$(printf '%s\n' \
+  Changes ReadMe.md VERSION project.clj \
+  www/docs/getting-started.md www/docs/installation.md | sort)
 [[ $changed == "$expected" ]]
 [[ -z $(git -C "$repo" status --short) ]]
 [[ -z $(git -C "$repo" tag -l) ]]
