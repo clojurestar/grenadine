@@ -75,7 +75,9 @@ _grenadine_get_main() (
       echo "grenadine get: no SHA-256 command is available" >&2
       return 1
     fi
-    [[ ${actual,,} == "${checksum,,}" ]] || {
+    actual=$(printf '%s' "$actual" | tr '[:upper:]' '[:lower:]')
+    checksum=$(printf '%s' "$checksum" | tr '[:upper:]' '[:lower:]')
+    [[ $actual == "$checksum" ]] || {
       echo "grenadine get: checksum mismatch for $archive" >&2
       return 1
     }

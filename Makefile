@@ -108,7 +108,8 @@ test-release: $(BB)
 	BB='$(BB)' test/release
 
 test-scripts: $(SHELLCHECK) $(PWSH)
-	$(SHELLCHECK) util/stage-sources util/release util/release-dist test/cli test/release www/docs/get
+	$(SHELLCHECK) util/stage-sources util/release util/release-dist test/cli test/installer test/release www/docs/get www/docs/install
+	test/installer
 	$(PWSH) -NoProfile -Command '$$tokens = $$null; $$errors = $$null; [System.Management.Automation.Language.Parser]::ParseFile("www/docs/get.ps1", [ref] $$tokens, [ref] $$errors) > $$null; if ($$errors.Count) { $$errors | Out-String | Write-Error; exit 1 }'
 
 site:

@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+
+_grenadine_install_main() (
+  set -euo pipefail
+
+  local get_url=${GRENADINE_GET_URL:-https://clojurestar.github.io/grenadine/get}
+  local prefix executable name destination temporary
+
+  command -v curl >/dev/null || {
+    echo "grenadine install: curl is required" >&2
+    return 1
+  }
+
+  if [[ -n ${PREFIX:-} ]]; then
+    prefix=$PREFIX
+  elif [[ ${EUID:-${UID:-$(id -u)}} == 0 ]]; then
+    prefix=/usr/local
+  else
+    prefix=${HOME:?HOME is required}/.local
+  fi
+
+  # shellcheck disable=SC1090
+  executable=$(source <(curl -fsSL "$get_url"))
+  [[ -n $executable && $executable != false && -f $executable ]] || {
+    echo "grenadine install: could not obtain a verified executable" >&2
+    return 1
+  }
+
+  name=${executable##*/}
+  destination=$prefix/bin/$name
+  temporary=$destination.tmp.$$
+  mkdir -p "$prefix/bin"
+  trap 'rm -f "$temporary"' EXIT
+  if command -v install >/dev/null; then
+    install -m 0755 "$executable" "$temporary"
+  else
+    cp "$executable" "$temporary"
+    chmod 0755 "$temporary"
+  fi
+
+  "$temporary" --version >/dev/null || {
+    echo "grenadine install: installed executable failed its version check" >&2
+    return 1
+  }
+  mv -f "$temporary" "$destination"
+  trap - EXIT
+  printf 'Installed grenadine to %s\n' "$destination"
+)
+
+if ! _grenadine_install_main "$@"; then
+  unset -f _grenadine_install_main 2>/dev/null || true
+  # shellcheck disable=SC2317
+  return 1 2>/dev/null || exit 1
+fi
+
+unset -f _grenadine_install_main 2>/dev/null || true

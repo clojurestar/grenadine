@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+top=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+temporary=$(mktemp -d)
+trap 'rm -rf -- "$temporary"' EXIT
+
+executable="$temporary/cache/grenadine"
+get="$temporary/get"
+mkdir -p "${executable%/*}"
+
+cat > "$executable" <<'SCRIPT'
+#!/usr/bin/env bash
+[[ ${1:-} == --version ]] || exit 1
+printf '%s\n' 'grenadine vtest'
+SCRIPT
+chmod 0755 "$executable"
+
+cat > "$get" <<'SCRIPT'
+printf '%s\n' "$GRENADINE_TEST_EXECUTABLE"
+SCRIPT
+
+check_shell() {
+  local shell=$1 prefix="$temporary/prefix-${1##*/}" output expected
+  # shellcheck disable=SC2016
+  output=$(
+    env GRENADINE_GET_URL="file://$get" \
+      GRENADINE_TEST_EXECUTABLE="$executable" \
+      "$shell" -c 'PREFIX=$1 source "$2"' "$shell" \
+        "$prefix" "$top/www/docs/install"
+  )
+
+  expected="Installed grenadine to $prefix/bin/grenadine"
+  [[ $output == "$expected" ]]
+  [[ -x $prefix/bin/grenadine ]]
+  [[ $("$prefix/bin/grenadine" --version) == 'grenadine vtest' ]]
+}
+
+check_shell bash
+if command -v zsh >/dev/null; then
+  check_shell zsh
+fi
+
+echo 'CLI installer checks passed'

@@ -45,6 +45,12 @@ Grenadine also ships as a native command compiled with
 dependencies from a local or remote `deps.edn` by hand, without first running
 a Clojure dialect or a JVM.
 
+Install the latest release on Bash or Zsh:
+
+```sh
+source <(curl -sL clojurestar.github.io/grenadine/install)
+```
+
 Use an installed `grenadine` binary like this:
 
 ```sh

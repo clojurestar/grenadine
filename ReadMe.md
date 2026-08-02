@@ -74,6 +74,19 @@ dependency closures. `--expand` prints the selected graph without installing
 JARs. Use `-M` or `--mediator` to select `newest`, `nearest`, or `tools-deps`.
 The default is `tools-deps`; `--mediators` describes all three.
 
+On Bash and Zsh, install the latest release under `$HOME/.local/bin` with:
+
+```sh
+source <(curl -sL clojurestar.github.io/grenadine/install)
+```
+
+Set `PREFIX` to choose another installation prefix:
+
+```sh
+PREFIX=/opt/grenadine \
+  source <(curl -sL clojurestar.github.io/grenadine/install)
+```
+
 On Bash and Zsh, the current release can also be downloaded, verified, and run
 from a temporary cache without installing it on `PATH`:
 
@@ -89,6 +102,19 @@ PowerShell users can run:
 
 Release binaries cover Linux on amd64, arm64, and armv6; macOS and Windows on
 amd64 and arm64; and FreeBSD, OpenBSD, and NetBSD on amd64 and arm64.
+
+To build and install the command from a source checkout:
+
+```sh
+make install
+```
+
+This installs `grenadine` under `$HOME/.local/bin` for a regular user or
+`/usr/local/bin` when run as root. Set `PREFIX` to choose another location:
+
+```sh
+make install PREFIX=/opt/grenadine
+```
 
 
 ## Configuration

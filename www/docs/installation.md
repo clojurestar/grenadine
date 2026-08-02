@@ -2,8 +2,8 @@
 
 Grenadine publishes a Clojure library and
 [native command archives](https://github.com/clojurestar/grenadine/releases).
-The one-shot launchers download the current archive, verify its SHA-256
-checksum, cache it in a temporary directory, and run the binary.
+The installer and one-shot launchers select the current archive and verify its
+SHA-256 checksum before using the binary.
 
 ## Clojure library
 
@@ -17,9 +17,31 @@ The library contains the portable core, JVM host, and runtime integration
 namespaces. Start with [Getting started](getting-started.md) and the
 [Core API reference](api-reference.md).
 
-## Bash and Zsh
+## Install the native command
 
-Run without installing:
+On Bash and Zsh, download and verify the current release and install it under
+`$HOME/.local/bin` with:
+
+```sh
+source <(curl -sL clojurestar.github.io/grenadine/install)
+```
+
+The installer uses `/usr/local` when run as root. Set `PREFIX` to choose
+another installation prefix:
+
+```sh
+PREFIX=/opt/grenadine \
+  source <(curl -sL clojurestar.github.io/grenadine/install)
+```
+
+This installs `/opt/grenadine/bin/grenadine`. Ensure the selected `bin`
+directory is on `PATH`.
+
+## Run without installing
+
+### Bash and Zsh
+
+Download, verify, and run the command from a temporary cache:
 
 ```sh
 $(source <(curl -sL clojurestar.github.io/grenadine/get)) --add deps.edn
@@ -32,7 +54,7 @@ and one supported SHA-256 command are required.
 Set `GRENADINE_RELEASE_URL` to test or mirror the release assets from another
 base URL.
 
-## PowerShell
+### PowerShell
 
 ```powershell
 & ([scriptblock]::Create((Invoke-RestMethod https://clojurestar.github.io/grenadine/get.ps1))) --add deps.edn
@@ -59,6 +81,24 @@ Extract the archive for your platform and place `grenadine` or
 
 Linux armv6 builds target GOARM=6. Other operating systems do not publish an
 armv6 archive.
+
+## Build from source
+
+From a Grenadine source checkout, build the native command with Gloat and
+install it on `PATH` with:
+
+```sh
+make install
+```
+
+For a regular user this installs `grenadine` in `$HOME/.local/bin`. When run
+as root it defaults to `/usr/local/bin`. Override the prefix when needed:
+
+```sh
+make install PREFIX=/opt/grenadine
+```
+
+The resulting command is installed as `/opt/grenadine/bin/grenadine`.
 
 ## Verify the installation
 
