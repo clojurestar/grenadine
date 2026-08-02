@@ -26,7 +26,7 @@
    "      --add             Install an expanded dependency graph\n"
    "      --delete          Delete only explicitly requested coordinates\n"
    "      --remove          Delete complete expanded dependency closures\n"
-   "      --expand          Expand dependencies without installing JARs\n"
+   "  -X, --expand          Expand dependencies without installing JARs\n"
    "      --mediators       List the available mediation strategies\n"
    "  -q, --quiet           Suppress non-error output\n"
    "  -h, --help            Show this help\n"
@@ -64,7 +64,7 @@
         (= "--remove" argument)
         (recur (next remaining) (assoc options :remove true))
 
-        (= "--expand" argument)
+        (contains? #{"-X" "--expand"} argument)
         (recur (next remaining) (assoc options :expand true))
 
         (= "--mediators" argument)

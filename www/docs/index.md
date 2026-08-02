@@ -95,7 +95,8 @@ On Bash and Zsh, the current release can be downloaded, verified, and run from
 a temporary cache without installing it on `PATH`:
 
 ```sh
-$(source <(curl -sL clojurestar.github.io/grenadine/get)) --add deps.edn
+$(source <(curl -sL clojurestar.github.io/grenadine/get)) \
+  -X https://github.com/yaml/yamlscript/blob/main/core/deps.edn
 ```
 
 PowerShell users can run:

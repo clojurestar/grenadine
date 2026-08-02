@@ -45,7 +45,7 @@ grenadine --add nrepl/bencode 1.1.0 clj-commons/clj-yaml
 grenadine --delete nrepl/bencode 1.1.0
 grenadine --remove clj-commons/clj-yaml
 grenadine --expand org.yamlscript/ys.v0
-grenadine -M newest --expand org.yamlscript/ys.v0
+grenadine -M newest -X org.yamlscript/ys.v0
 grenadine --mediators
 grenadine --help
 grenadine --version
@@ -97,7 +97,8 @@ On Bash and Zsh, the current release can also be downloaded, verified, and run
 from a temporary cache without installing it on `PATH`:
 
 ```sh
-$(source <(curl -sL clojurestar.github.io/grenadine/get)) --add deps.edn
+$(source <(curl -sL clojurestar.github.io/grenadine/get)) \
+  -X https://github.com/yaml/yamlscript/blob/main/core/deps.edn
 ```
 
 PowerShell users can run:

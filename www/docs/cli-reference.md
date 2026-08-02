@@ -26,7 +26,7 @@ operands without an explicit operation are rejected.
 | | `--add` | Expand and install all selected dependencies. |
 | | `--delete` | Delete only explicitly requested coordinates. |
 | | `--remove` | Expand inputs and delete their complete dependency closures. |
-| | `--expand` | Print an expanded graph without installing JARs. |
+| `-X` | `--expand` | Print an expanded graph without installing JARs. |
 | | `--mediators` | Describe the available mediation strategies. |
 | `-q` | `--quiet` | Suppress non-error operational output. |
 | `-h` | `--help` | Print usage. |

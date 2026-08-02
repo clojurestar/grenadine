@@ -60,7 +60,8 @@ directory is on `PATH`.
 Download, verify, and run the command from a temporary cache:
 
 ```sh
-$(source <(curl -sL clojurestar.github.io/grenadine/get)) --add deps.edn
+$(source <(curl -sL clojurestar.github.io/grenadine/get)) \
+  -X https://github.com/yaml/yamlscript/blob/main/core/deps.edn
 ```
 
 The sourced script prints the verified executable path. Command substitution

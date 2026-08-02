@@ -195,6 +195,9 @@ check_exact "expand with short mediator" 0 \
   $'demo/branch 1.0.0\ndemo/c 2.0.0\ndemo/root 1.0.0' \
   "$grenadine" --repository "$resolve_repo" -M newest \
     --expand demo/root 1.0.0
+check_exact "expand with short option" 0 \
+  $'demo/branch 1.0.0\ndemo/c 2.0.0\ndemo/root 1.0.0' \
+  "$grenadine" --repository "$resolve_repo" -X demo/root 1.0.0
 check_exact "tools-deps preserves direct root" 0 \
   $'demo/branch 1.0.0\ndemo/c 1.0.0\ndemo/root 1.0.0' \
   "$grenadine" --repository "$resolve_repo" --mediator=tools-deps \
