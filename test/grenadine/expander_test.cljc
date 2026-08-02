@@ -170,3 +170,28 @@
            (get-in result [:warnings 0 :warning])))
     (is (seq (get-in result [:trace :log])))
     (is (map? (get-in result [:trace :vmap])))))
+
+(deftest reports-the-message-of-an-incomparable-version-pair
+  (testing "coordinates with no defined order warn and keep the selection"
+    ;; e1/a depends on e1/b 1 and e1/c 2; e1/b 1 depends on e1/c 1, so e1/c is
+    ;; reached at two versions and :compare-versions decides between them.
+    (let [result
+          (expansion base-repo
+                     {'e1/a {:fkn/version "1"}}
+                     {:compare-versions
+                      (fn [lib _ _]
+                        (throw (ex-info (str "no ordering for " lib)
+                                        {:lib lib})))})
+          warning (first (:warnings result))]
+      (is (= :versions-not-comparable (:warning warning)))
+      (is (= 'e1/c (:lib warning)))
+      (is (= {:fkn/version "2"} (:selected warning)))
+      (is (= {:fkn/version "1"} (:candidate warning)))
+      ;; the message, not the exception's printed representation — hosts render
+      ;; warnings with pr-str, so a toString drags the class name and ex-data
+      ;; in (and on Glojure loses the message entirely). Matched rather than
+      ;; compared because Glojure's ex-message appends its own stack trace.
+      (is (re-find #"no ordering for e1/c" (:message warning)))
+      (is (not (re-find #"ExceptionInfo" (:message warning))))
+      ;; an undecidable pair keeps the already-selected coordinate
+      (is (= "2" (:fkn/version (get (:libs result) 'e1/c)))))))

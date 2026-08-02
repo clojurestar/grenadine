@@ -118,18 +118,34 @@
   (swap! warnings conj warning)
   (when on-warning (on-warning warning)))
 
+(defn- not-comparable!
+  [lib candidate selected warnings on-warning error]
+  (warn! warnings on-warning
+         {:warning :versions-not-comparable
+          :lib lib
+          :selected selected
+          :candidate candidate
+          ;; the message alone: warnings are data that hosts render with
+          ;; pr-str, so an exception's printed form would drag in its class
+          ;; name and ex-data — and on Glojure it carries no message at all
+          :message (ex-message error)})
+  false)
+
 (defn- newer?
   [lib candidate selected compare-versions warnings on-warning]
-  (try
-    (pos? (compare-versions lib candidate selected))
-    (catch Exception error
-      (warn! warnings on-warning
-             {:warning :versions-not-comparable
-              :lib lib
-              :selected selected
-              :candidate candidate
-              :message (str error)})
-      false)))
+  ;; Glojure resolves neither Exception nor Throwable; `go/any` is the catch-all
+  ;; it takes, the same split grenadine.test-support/throws? already makes.
+  #?(:glj
+     (try
+       (pos? (compare-versions lib candidate selected))
+       (catch go/any error
+         (not-comparable! lib candidate selected warnings on-warning error)))
+
+     :default
+     (try
+       (pos? (compare-versions lib candidate selected))
+       (catch Exception error
+         (not-comparable! lib candidate selected warnings on-warning error)))))
 
 (defn- include-coordinate
   [version-map lib coord coord-id path exclusions
