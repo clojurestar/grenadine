@@ -23,6 +23,13 @@ remote `deps.edn` source without Java:
 grenadine deps.edn
 grenadine --repository=my-m2 deps.edn
 grenadine --quiet deps.edn
+grenadine --list
+grenadine --repository=my-m2 --list
+grenadine --add nrepl/bencode 1.1.0 clj-commons/clj-yaml
+grenadine --remove nrepl/bencode 1.1.0 clj-commons/clj-yaml
+grenadine --resolve org.yamlscript/ys.v0
+grenadine --resolver=newest --resolve org.yamlscript/ys.v0
+grenadine --resolvers
 grenadine --help
 grenadine --version
 ```
@@ -42,6 +49,19 @@ non-error output. The repository used by `-R` or `--repository` takes
 precedence over `:mvn/local-repo` in the deps source,
 `GRENADINE_LOCAL_REPOSITORY`, and the default
 `$HOME/.m2/repository`, in that order.
+
+`--add` accepts one or more `group/artifact` names, each optionally followed
+by a version. When a version is omitted, Grenadine selects the Maven metadata
+release (or latest non-SNAPSHOT version) and installs its transitive
+dependencies. `--remove` removes only the requested library version; omit the
+version to remove every locally installed version of that library. It does not
+garbage-collect transitive dependencies.
+
+`--resolve` performs the same transitive graph resolution without installing
+JARs. It caches required POMs and prints the selected `group/artifact VERSION`
+coordinates in sorted order. Use `--resolver` with deps-source installation,
+`--add`, or `--resolve` to select `newest`, `nearest`, or `tools-deps`
+mediation. The default is `tools-deps`; `--resolvers` describes all three.
 
 On Bash and Zsh, the current release can also be downloaded, verified, and run
 from a temporary cache without installing it on `PATH`:

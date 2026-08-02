@@ -63,6 +63,40 @@ grenadine --repository=my-m2 \
   https://github.com/seancorfield/honeysql/blob/develop/deps.edn
 ```
 
+You can also add coordinates directly. A version is optional; without one,
+Grenadine installs the latest Maven release:
+
+```sh
+grenadine --add nrepl/bencode 1.1.0 \
+  clj-commons/clj-yaml org.flatland/ordered
+```
+
+Remove one version by naming it, or omit the version to remove every locally
+installed version of that library:
+
+```sh
+grenadine --remove nrepl/bencode 1.1.0 \
+  clj-commons/clj-yaml org.flatland/ordered
+```
+
+Removal affects only the requested coordinates. It does not remove transitive
+dependencies that may no longer be needed.
+
+Resolve and inspect a complete dependency graph without installing any JARs:
+
+```sh
+grenadine --resolve org.yamlscript/ys.v0
+```
+
+Required POMs are reused from or cached in the selected local repository. The
+result is a sorted list of selected coordinates. Choose another conflict
+resolver, or list the available methodologies, with:
+
+```sh
+grenadine --resolver=newest --resolve org.yamlscript/ys.v0
+grenadine --resolvers
+```
+
 You can also run the latest release without installing `grenadine` on your PATH:
 
 ```sh

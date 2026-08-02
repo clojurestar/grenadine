@@ -1,6 +1,7 @@
 (ns grenadine.repo-test
   (:require [clojure.test :refer [deftest is]]
-            [grenadine.repo :as repo]))
+            [grenadine.repo :as repo]
+            [grenadine.test-support :refer [throws?]]))
 
 (defn fake-host
   [initial responses]
@@ -46,6 +47,62 @@
     (is (= "/home/test/.m2/repository"
            (repo/local-repo
             {:host (assoc host :getenv (fn [_] nil))})))))
+
+(defn metadata
+  [{:keys [release latest versions]}]
+  (str "<metadata><versioning>"
+       (when release (str "<release>" release "</release>"))
+       (when latest (str "<latest>" latest "</latest>"))
+       "<versions>"
+       (apply str (map #(str "<version>" % "</version>") versions))
+       "</versions></versioning></metadata>"))
+
+(deftest selects-latest-maven-release
+  (let [url "https://repo.example/demo/a/maven-metadata.xml"
+        coords {:group "demo" :artifact "a"}
+        latest
+        (fn [body]
+          (let [{:keys [host]}
+                (fake-host {} {url {:status 200 :body body}})]
+            (repo/latest-version
+             coords {:host host :repos ["https://repo.example"]})))]
+    (is (= "2.0" (latest (metadata {:release "2.0"
+                                     :latest "3.0-SNAPSHOT"
+                                     :versions ["1.0" "3.0-SNAPSHOT"]}))))
+    (is (= "3.0-SNAPSHOT"
+           (latest (metadata {:latest "3.0-SNAPSHOT"
+                              :versions ["1.0" "2.0"]}))))
+    (is (= "1.10"
+           (latest (metadata {:versions ["1.9" "1.10"
+                                         "2.0-SNAPSHOT"]}))))))
+
+(deftest latest-release-falls-back-between-repositories
+  (let [central "https://central.example/demo/a/maven-metadata.xml"
+        clojars "https://clojars.example/demo/a/maven-metadata.xml"
+        {:keys [host]}
+        (fake-host
+         {}
+         {central {:status 404}
+          clojars {:status 200 :body (metadata {:release "4.2"})}})]
+    (is (= "4.2"
+           (repo/latest-version
+            {:group "demo" :artifact "a"}
+            {:host host
+             :repos ["https://central.example" "https://clojars.example"]})))))
+
+(deftest rejects-missing-and-invalid-metadata
+  (let [{missing-host :host} (fake-host {} {})
+        url "https://repo.example/demo/a/maven-metadata.xml"
+        {invalid-host :host}
+        (fake-host {} {url {:status 200 :body "<metadata>"}})]
+    (is (throws?
+         (repo/latest-version
+          {:group "demo" :artifact "a"}
+          {:host missing-host :repos ["https://repo.example"]})))
+    (is (throws?
+         (repo/latest-version
+          {:group "demo" :artifact "a"}
+          {:host invalid-host :repos ["https://repo.example"]})))))
 
 (deftest fetches-verifies-and-enriches-lock
   (let [url "https://repo.example/demo/a/1/a-1.jar"

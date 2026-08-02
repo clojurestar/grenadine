@@ -51,6 +51,11 @@ Use an installed `grenadine` binary like this:
 grenadine deps.edn
 grenadine --repository=my-m2 deps.edn
 grenadine --quiet deps.edn
+grenadine --add nrepl/bencode 1.1.0 clj-commons/clj-yaml
+grenadine --remove nrepl/bencode 1.1.0 clj-commons/clj-yaml
+grenadine --resolve org.yamlscript/ys.v0
+grenadine --resolver=newest --resolve org.yamlscript/ys.v0
+grenadine --resolvers
 grenadine --help
 grenadine --version
 ```

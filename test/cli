@@ -22,7 +22,7 @@ check() {
   set -e
   checks=$((checks + 1))
   if [[ $status != "$expected_status" ]] ||
-     ! grep -Eq "$expected_pattern" <<< "$output"; then
+     ! grep -Eq -- "$expected_pattern" <<< "$output"; then
     echo "not ok $checks - $description" >&2
     echo "  status: $status" >&2
     echo "  output: $output" >&2
@@ -84,6 +84,45 @@ seed_repo() {
   printf 'fixture jar\n' > "$base/demo-1.0.0.jar"
 }
 
+seed_list_repo() {
+  local repository=$1
+  seed_repo "$repository"
+  mkdir -p \
+    "$repository/org/alpha/example/2.0.0" \
+    "$repository/org/parent/bom/3.0.0"
+  printf 'fixture jar\n' \
+    > "$repository/org/alpha/example/2.0.0/example-2.0.0.jar"
+  printf 'sources jar\n' \
+    > "$repository/org/alpha/example/2.0.0/example-2.0.0-sources.jar"
+  printf '<project/>\n' \
+    > "$repository/org/parent/bom/3.0.0/bom-3.0.0.pom"
+}
+
+write_pom() {
+  local repository=$1 group=$2 artifact=$3 version=$4 dependencies=$5
+  local group_path=${group//./\/}
+  local base=$repository/$group_path/$artifact/$version
+  mkdir -p "$base"
+  printf '%s\n' \
+    '<project>' \
+    '  <modelVersion>4.0.0</modelVersion>' \
+    "  <groupId>$group</groupId>" \
+    "  <artifactId>$artifact</artifactId>" \
+    "  <version>$version</version>" \
+    "  <dependencies>$dependencies</dependencies>" \
+    '</project>' > "$base/$artifact-$version.pom"
+}
+
+seed_resolve_repo() {
+  local repository=$1
+  write_pom "$repository" demo root 1.0.0 \
+    '<dependency><groupId>demo</groupId><artifactId>c</artifactId><version>1.0.0</version></dependency><dependency><groupId>demo</groupId><artifactId>branch</artifactId><version>1.0.0</version></dependency>'
+  write_pom "$repository" demo branch 1.0.0 \
+    '<dependency><groupId>demo</groupId><artifactId>c</artifactId><version>2.0.0</version></dependency>'
+  write_pom "$repository" demo c 1.0.0 ''
+  write_pom "$repository" demo c 2.0.0 ''
+}
+
 write_deps() {
   local file=$1 local_repo=${2:-}
   if [[ $local_repo ]]; then
@@ -100,12 +139,136 @@ check "missing source argument" 1 'a deps source is required' "$grenadine"
 check "unknown option" 1 'unknown option: --wat' "$grenadine" --wat
 check "removed repo option" 1 'unknown option: --repo' "$grenadine" --repo=somewhere
 
+list_repo="$temporary/list repo"
+seed_list_repo "$list_repo"
+check_exact "list repository" 0 \
+  $'org.alpha/example 2.0.0\norg.example/demo 1.0.0' \
+  "$grenadine" --repository "$list_repo" --list
+check_exact "list environment repository" 0 \
+  $'org.alpha/example 2.0.0\norg.example/demo 1.0.0' \
+  env GRENADINE_LOCAL_REPOSITORY="$list_repo" "$grenadine" --list
+check_empty "quiet list" 0 \
+  "$grenadine" --quiet --repository="$list_repo" --list
+check "list rejects source" 1 '--list does not accept a deps source' \
+  "$grenadine" --list deps.edn
+check "operation conflict" 1 \
+  '--list, --add, --remove, --resolve, and --resolvers are mutually exclusive' \
+  "$grenadine" --list --add org.example/demo 1.0.0
+
+check_exact "list resolver methodologies" 0 \
+  $'newest     Select the highest Maven-compatible version\nnearest    Select the shortest path, then declaration order\ntools-deps Preserve direct dependencies; otherwise select newest (default)' \
+  "$grenadine" --resolvers
+check_empty "quiet resolver methodologies" 0 \
+  "$grenadine" --quiet --resolvers
+check "resolvers reject arguments" 1 '--resolvers does not accept arguments' \
+  "$grenadine" --resolvers demo/root
+check "resolvers reject repository" 1 '--resolvers does not use --repository' \
+  "$grenadine" --repository somewhere --resolvers
+check "resolver rejects unknown methodology" 1 \
+  'unknown resolver methodology: random' \
+  "$grenadine" --resolver=random --resolve demo/root 1.0.0
+check "resolver rejects list mode" 1 \
+  '--resolver is only valid with --resolve, --add, or a deps source' \
+  "$grenadine" --resolver newest --list
+check "resolve requires a library" 1 \
+  '--resolve requires at least one library name' "$grenadine" --resolve
+check "resolve rejects duplicate library" 1 \
+  'each library name may be specified only once' \
+  "$grenadine" --resolve demo/root 1 demo/root 2
+
+resolve_repo="$temporary/resolve repo"
+seed_resolve_repo "$resolve_repo"
+check_exact "resolve defaults to tools-deps" 0 \
+  $'demo/branch 1.0.0\ndemo/c 2.0.0\ndemo/root 1.0.0' \
+  "$grenadine" --repository "$resolve_repo" --resolve demo/root 1.0.0
+check_exact "resolve with nearest" 0 \
+  $'demo/branch 1.0.0\ndemo/c 1.0.0\ndemo/root 1.0.0' \
+  "$grenadine" --repository "$resolve_repo" --resolver=nearest \
+    --resolve demo/root 1.0.0
+check_exact "resolve with newest separate option" 0 \
+  $'demo/branch 1.0.0\ndemo/c 2.0.0\ndemo/root 1.0.0' \
+  "$grenadine" --repository "$resolve_repo" --resolver newest \
+    --resolve demo/root 1.0.0
+check_exact "tools-deps preserves direct root" 0 \
+  $'demo/branch 1.0.0\ndemo/c 1.0.0\ndemo/root 1.0.0' \
+  "$grenadine" --repository "$resolve_repo" --resolver=tools-deps \
+    --resolve demo/root 1.0.0 demo/c 1.0.0
+check_empty "quiet resolve" 0 \
+  "$grenadine" --quiet --repository "$resolve_repo" \
+    --resolve demo/root 1.0.0
+check_empty "resolve installs no jars" 0 \
+  find "$resolve_repo" -name '*.jar' -print
+
+add_repo="$temporary/add repo"
+seed_repo "$add_repo"
+check_exact "add explicit version" 0 \
+  '=> Installed: 0  Already: 1  Total: 1' \
+  "$grenadine" --resolver=newest --repository "$add_repo" \
+    --add org.example/demo 1.0.0
+check_empty "quiet add" 0 \
+  "$grenadine" --quiet --repository "$add_repo" \
+    --add org.example/demo 1.0.0
+check "add requires a library" 1 '--add requires at least one library name' \
+  "$grenadine" --add
+check "add rejects invalid name" 1 'invalid library name: example' \
+  "$grenadine" --add example 1.0.0
+check "add rejects duplicate library" 1 \
+  'each library name may be specified only once' \
+  "$grenadine" --add org.example/demo 1 org.example/demo 2
+
+remove_repo="$temporary/remove repo"
+seed_list_repo "$remove_repo"
+check_exact "remove one version" 0 \
+  $'Removed org.example/demo 1.0.0\n=> Removed: 1  Missing: 0  Total: 1' \
+  "$grenadine" --repository "$remove_repo" \
+    --remove org.example/demo 1.0.0
+check_empty "removed version is gone" 0 \
+  test ! -e "$remove_repo/org/example/demo/1.0.0"
+check_exact "remove all versions" 0 \
+  $'Removed org.alpha/example (all versions)\n=> Removed: 1  Missing: 0  Total: 1' \
+  "$grenadine" --repository "$remove_repo" --remove org.alpha/example
+check_empty "removed artifact is gone" 0 \
+  test ! -e "$remove_repo/org/alpha/example"
+
+mkdir -p \
+  "$remove_repo/org/example/multi/1.0.0" \
+  "$remove_repo/org/example/multi/2.0.0"
+check_exact "remove multiple explicit versions" 0 \
+  $'Removed org.example/multi 1.0.0\nRemoved org.example/multi 2.0.0\n=> Removed: 2  Missing: 0  Total: 2' \
+  "$grenadine" --repository "$remove_repo" --remove \
+    org.example/multi 1.0.0 org.example/multi 2.0.0
+check_exact "missing removal succeeds" 0 \
+  $'Missing org.example/missing 9.0\n=> Removed: 0  Missing: 1  Total: 1' \
+  "$grenadine" --repository "$remove_repo" \
+    --remove org.example/missing 9.0
+mkdir -p "$remove_repo/org/example/quiet/1.0.0"
+check_empty "quiet remove" 0 \
+  "$grenadine" --quiet --repository "$remove_repo" \
+    --remove org.example/quiet 1.0.0
+check "remove requires a library" 1 \
+  '--remove requires at least one library name' "$grenadine" --remove
+check "remove rejects unsafe name" 1 'invalid library name' \
+  "$grenadine" --repository "$remove_repo" --remove ../outside
+mkdir -p "$remove_repo/org/example/safe/1.0.0"
+check "remove validates before deleting" 1 'invalid library name' \
+  "$grenadine" --repository "$remove_repo" --remove \
+    org.example/safe 1.0.0 ../outside
+check_empty "preflight preserves valid target" 0 \
+  test -d "$remove_repo/org/example/safe/1.0.0"
+check "remove rejects unsafe version" 1 'invalid version: \.\.' \
+  "$grenadine" --repository "$remove_repo" --remove org.example/safe ..
+check "remove rejects duplicate request" 1 'duplicate removal request' \
+  "$grenadine" --remove org.example/safe 1 org.example/safe 1
+check "remove rejects mixed all-version request" 1 \
+  'cannot combine all-version and version removals' \
+  "$grenadine" --remove org.example/safe org.example/safe 1
+
 deps_file="$temporary/deps file.edn"
 explicit_repo="$temporary/explicit repo"
 seed_repo "$explicit_repo"
 write_deps "$deps_file"
 check "long repository option" 0 '^=> Installed: 0  Already: 1  Total: 1$' \
-  "$grenadine" "--repository=$explicit_repo" "$deps_file"
+  "$grenadine" --resolver=nearest "--repository=$explicit_repo" "$deps_file"
 check "short repository option" 0 '^=> Installed: 0  Already: 1  Total: 1$' \
   "$grenadine" -R "$explicit_repo" "$deps_file"
 check_empty "short quiet option" 0 \

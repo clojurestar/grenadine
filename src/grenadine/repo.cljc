@@ -1,7 +1,9 @@
 (ns grenadine.repo
   "Effectful Maven repository operations expressed through a host function map."
   (:require [clojure.string :as str]
-            [grenadine.lock :as lock]))
+            [grenadine.lock :as lock]
+            [grenadine.version :as version]
+            [grenadine.xml :as xml]))
 
 (defn- require-host
   [host keys]
@@ -49,6 +51,76 @@
   (str (trim-trailing-slashes
         (if (map? repo) (:url repo) repo))
        "/" path))
+
+(defn- child-elements
+  [node tag]
+  (filter #(and (map? %) (= tag (:tag %))) (:content node)))
+
+(defn- child-element
+  [node tag]
+  (first (child-elements node tag)))
+
+(defn- element-text
+  [node]
+  (when node
+    (let [value (str/trim (apply str (filter string? (:content node))))]
+      (when (seq value) value))))
+
+(defn- metadata-version
+  [source]
+  (let [metadata (xml/parse source)
+        versioning (child-element metadata :versioning)
+        release (element-text (child-element versioning :release))
+        latest (element-text (child-element versioning :latest))
+        versions-node (child-element versioning :versions)
+        versions
+        (->> (child-elements versions-node :version)
+             (keep element-text)
+             (remove #(str/ends-with? (str/upper-case %) "-SNAPSHOT")))]
+    (or release
+        latest
+        (reduce
+         (fn [selected candidate]
+           (if (or (nil? selected) (version/newer? candidate selected))
+             candidate
+             selected))
+         nil
+         versions))))
+
+(defn latest-version
+  "Return the latest Maven release for a group/artifact coordinate.
+
+  Repositories are tried in order. Metadata `release` wins, followed by
+  `latest`, then the highest listed non-SNAPSHOT version."
+  [{:keys [group artifact] :as coords} {:keys [host repos]}]
+  (require-host host [:http-get :bytes->utf8])
+  (let [path (str (str/replace group "." "/")
+                  "/" artifact "/maven-metadata.xml")
+        repos (or repos lock/default-repos)]
+    (loop [remaining repos]
+      (if-let [repository (first remaining)]
+        (let [url (remote-url repository path)
+              response ((:http-get host) url)]
+          (if (= 200 (:status response))
+            (let [candidate
+                  (try
+                    (metadata-version ((:bytes->utf8 host) (:body response)))
+                    (catch Exception error
+                      (throw
+                       (ex-info (str "Invalid Maven metadata for "
+                                     group "/" artifact)
+                                {:type :grenadine.repo/invalid-metadata
+                                 :coords coords
+                                 :url url}
+                                error))))]
+              (if candidate
+                candidate
+                (recur (next remaining))))
+            (recur (next remaining))))
+        (throw
+         (ex-info (str "No Maven release found for " group "/" artifact)
+                  {:type :grenadine.repo/version-not-found
+                   :coords coords}))))))
 
 (defn- successful?
   [response]
