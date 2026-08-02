@@ -1,5 +1,6 @@
 (ns grenadine.test-runner
   (:require [clojure.test :as test]
+            [grenadine.expander-test]
             [grenadine.graph-test]
             [grenadine.lock-test]
             [grenadine.pom-test]
@@ -24,6 +25,7 @@
            (test/run-tests 'grenadine.xml-test
                            'grenadine.pom-test
                            'grenadine.version-test
+                           'grenadine.expander-test
                            'grenadine.graph-test
                            'grenadine.lock-test
                            'grenadine.repo-test

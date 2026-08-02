@@ -1,12 +1,14 @@
 (ns grenadine.core
   "Portable Maven dependency resolution."
-  (:require [grenadine.graph :as graph]
+  (:require [grenadine.expander :as expander]
+            [grenadine.graph :as graph]
             [grenadine.lock :as lock]
             [grenadine.pom :as pom]
             [grenadine.repo :as repo]))
 
 (def parse-pom pom/parse-pom)
 (def interpolate pom/interpolate-string)
+(def expand-deps expander/expand-deps)
 (def emit-lock lock/emit-lock)
 (def lock->classpath lock/lock->classpath)
 (def fetch-lock! repo/fetch-lock!)

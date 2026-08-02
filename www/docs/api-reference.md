@@ -6,6 +6,24 @@ constructors such as `grenadine.host.jvm/host` provide platform effects.
 
 ## High-level operations
 
+### `expand-deps`
+
+```clojure
+(expand-deps deps opts) ;=> expansion
+```
+
+Runs portable tools.deps-style tree expansion for arbitrary coordinate types.
+The required `:coord-id`, `:coord-deps`, and `:compare-versions` functions
+identify a coordinate, return its child dependency entries, and order two
+coordinates for the same library. `:known-coordinate?` and `:base-lib` may
+customize validation and exclusion matching.
+
+`:override-deps` replaces coordinates at every occurrence, `:default-deps`
+fills missing coordinates, and `:trace? true` includes the traversal log and
+version map. The result contains selected `:libs`, stable first-inclusion
+`:order`, structured `:warnings`, and optional `:trace`. `:on-warning` receives
+each warning as it occurs.
+
 ### `install!`
 
 ```clojure

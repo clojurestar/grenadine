@@ -114,3 +114,26 @@
           :mediation :newest})]
     (is (= "2" (selected-version resolution "c")))
     (is (nil? (get-in resolution [:selected ["demo" "only-old"]])))))
+
+(deftest tools-deps-narrows-exclusions-across-paths
+  (let [custom-poms
+        {["demo" "a" "1"]
+         {:deps [{:group "demo" :artifact "b" :version "1"
+                  :exclusions #{'demo/c}}
+                 {:group "demo" :artifact "d" :version "1"}]}
+         ["demo" "b" "1"]
+         {:deps [{:group "demo" :artifact "c" :version "1"}]}
+         ["demo" "c" "1"] {:deps []}
+         ["demo" "d" "1"]
+         {:deps [{:group "demo" :artifact "b" :version "1"}]}}
+        resolution
+        (graph/resolve-graph
+         '{demo/a {:mvn/version "1"}}
+         {:pom-fn
+          (fn [coords]
+            (get custom-poms
+                 [(:group coords) (:artifact coords) (:version coords)]))
+          :mediation :tools-deps})]
+    (is (= #{["demo" "a"] ["demo" "b"]
+             ["demo" "c"] ["demo" "d"]}
+           (set (keys (:selected resolution)))))))

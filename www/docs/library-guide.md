@@ -17,7 +17,22 @@ The high-level `grenadine.core/install!` operation performs these steps:
 6. Optionally extract portable Clojure source roots from installed JARs.
 
 The individual stages are also public through `effective-pom`,
-`resolve-graph`, `emit-lock`, `fetch-lock!`, and `prepare-source-roots!`.
+`expand-deps`, `resolve-graph`, `emit-lock`, `fetch-lock!`, and
+`prepare-source-roots!`.
+
+## Portable dependency expansion
+
+`expand-deps` is the coordinate-neutral tools.deps expansion engine shared by
+Grenadine and Jolt. Callers supply functions that identify coordinates, load
+their children, and compare versions, so Maven, Git, local, and in-memory test
+coordinates use the same breadth-first traversal. It implements direct-root
+precedence, newest transitive selection, path-scoped exclusions, exclusion
+intersection, orphan cutting, overrides, defaults, stable inclusion order, and
+optional trace output.
+
+Grenadine's Maven graph uses this engine for `:tools-deps` mediation. The
+`:newest` and `:nearest` modes retain their distinct selection policies over
+Grenadine's path-aware Maven occurrence graph.
 
 ## Dependency coordinates
 

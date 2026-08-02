@@ -1,6 +1,7 @@
 (ns grenadine.graph
   "Pure path-aware dependency graph traversal and version mediation."
   (:require [clojure.string :as str]
+            [grenadine.expander :as expander]
             [grenadine.version :as version]))
 
 (defn- split-lib
@@ -229,6 +230,71 @@
         {:selected next-selected :active (vec active)}
         (recur next-selected)))))
 
+(defn- tools-coordinate
+  [coordinate]
+  (cond-> (select-keys coordinate [:group :artifact :version])
+    (seq (:exclusions coordinate))
+    (assoc :exclusions (normalize-exclusions (:exclusions coordinate)))))
+
+(defn- tools-deps-expansion
+  [deps {:keys [pom-fn include-optional? exclusions]}]
+  (let [global-exclusions (normalize-exclusions exclusions)
+        roots
+        (->> (root-coordinates deps)
+             (remove #(contains? global-exclusions (ga (:coords %))))
+             (mapv
+              (fn [{:keys [coords edge-exclusions]}]
+                [(ga coords)
+                 (cond-> coords
+                   (seq edge-exclusions)
+                   (assoc :exclusions edge-exclusions))])))]
+    (expander/expand-deps
+     roots
+     {:coord-id (fn [_ coordinate] (gav coordinate))
+      :known-coordinate?
+      (fn [coordinate]
+        (and (map? coordinate) (seq (:version coordinate))))
+      :compare-versions
+      (fn [_ left right]
+        (version/compare-versions (:version left) (:version right)))
+      :coord-deps
+      (fn [_ coordinate]
+        (->> (:deps (pom-fn coordinate))
+             (filter #(and (kept-scope? (:scope %))
+                           (or include-optional? (not (:optional %)))
+                           (not (contains? global-exclusions (ga %)))))
+             (mapv (fn [dependency]
+                     [(ga dependency) (tools-coordinate dependency)]))))})))
+
+(defn- expanded-selection
+  [occurrences libraries]
+  (into
+   {}
+   (map
+    (fn [[key coordinate]]
+      (let [matches
+            (filter #(= (gav coordinate) (gav (:coords %))) occurrences)
+            selected
+            (if (seq matches)
+              (reduce nearer matches)
+              {:coords (select-keys coordinate
+                                    [:group :artifact :version])
+               :depth 0
+               :order 0
+               :via [(select-keys coordinate
+                                  [:group :artifact :version])]
+               :scope "compile"
+               :direct? true})]
+        [key selected]))
+    libraries)))
+
+(defn- tools-deps-mediate
+  [occurrences expansion]
+  (let [selected (expanded-selection occurrences (:libs expansion))]
+    {:selected selected
+     :active (vec (filter #(active-occurrence? selected %) occurrences))
+     :warnings (:warnings expansion)}))
+
 (defn resolve-graph
   "Resolve Maven dependency occurrences and mediate versions.
 
@@ -237,8 +303,14 @@
   [deps opts]
   (let [enumerated (enumerate deps opts)
         mode (:mediation opts :newest)
-        {:keys [selected active]}
-        (mediate mode (:occurrences enumerated))
+        mediated
+        (if (= mode :tools-deps)
+          (tools-deps-mediate
+           (:occurrences enumerated)
+           (tools-deps-expansion deps opts))
+          (mediate mode (:occurrences enumerated)))
+        selected (:selected mediated)
+        active (:active mediated)
         grouped (group-by #(ga (:coords %)) (:occurrences enumerated))
         conflicts
         (mapcat
@@ -261,5 +333,6 @@
                            [[group artifact] :coords :version])))))
            (:graph enumerated))
      :omitted (vec (concat (:omitted enumerated) conflicts))
-     :warnings (:warnings enumerated)
+     :warnings (vec (concat (:warnings enumerated)
+                            (:warnings mediated)))
      :occurrences active}))

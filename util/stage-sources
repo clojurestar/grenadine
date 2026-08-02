@@ -17,7 +17,7 @@ mkdir -p "$destination"
 cp "$top/src/grenadine/cli.clj" "$destination/main.clj"
 cp "$top/src/grenadine/host/glojure.clj" \
   "$destination/grenadine_host_glojure.clj"
-for namespace in core graph lock pom repo source version xml; do
+for namespace in core expander graph lock pom repo source version xml; do
   cp "$top/src/grenadine/$namespace.cljc" \
     "$destination/grenadine_${namespace}.clj"
 done
