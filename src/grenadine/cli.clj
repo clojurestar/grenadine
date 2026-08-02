@@ -15,7 +15,7 @@
    "       grenadine [OPTIONS] --delete ITEM...\n"
    "       grenadine [OPTIONS] [-M MODE] --remove ITEM...\n"
    "       grenadine [OPTIONS] [-M MODE] --expand ITEM...\n"
-   "       grenadine [OPTIONS] --mediators\n"
+   "       grenadine --mediators\n"
    "       grenadine --help\n"
    "       grenadine --version\n\n"
    "ITEM is NAME [VERSION] or a local/remote DEPS-SOURCE.\n\n"
@@ -30,7 +30,7 @@
    "      --mediators       List the available mediation strategies\n"
    "  -q, --quiet           Suppress non-error output\n"
    "  -h, --help            Show this help\n"
-   "  -V, --version         Show the Grenadine version"))
+   "      --version         Show the Grenadine version"))
 
 (defn- exit! [status]
   (os.Exit status))
@@ -46,7 +46,7 @@
         (contains? #{"-h" "--help"} argument)
         (recur (next remaining) (assoc options :help true))
 
-        (contains? #{"-V" "--version"} argument)
+        (= "--version" argument)
         (recur (next remaining) (assoc options :version true))
 
         (contains? #{"-q" "--quiet"} argument)
@@ -632,6 +632,7 @@
         (cond
           (seq operands) (fail! "--mediators does not accept items")
           repository (fail! "--mediators does not use --repository")
+          (:quiet parsed) (fail! "--mediators does not use --quiet")
           :else (list-mediators! options))
         list (if (seq operands)
                (list-expanded! options)

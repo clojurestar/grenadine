@@ -7,7 +7,7 @@ Usage: grenadine
        grenadine [OPTIONS] --delete ITEM...
        grenadine [OPTIONS] [-M MODE] --remove ITEM...
        grenadine [OPTIONS] [-M MODE] --expand ITEM...
-       grenadine [OPTIONS] --mediators
+       grenadine --mediators
        grenadine --help
        grenadine --version
 ```
@@ -30,7 +30,7 @@ operands without an explicit operation are rejected.
 | | `--mediators` | Describe the available mediation strategies. |
 | `-q` | `--quiet` | Suppress non-error operational output. |
 | `-h` | `--help` | Print usage. |
-| `-V` | `--version` | Print `grenadine vVERSION`. |
+| | `--version` | Print `grenadine vVERSION`. |
 
 Exactly one operation is accepted. `--repository=DIR` and
 `--mediator=MODE` are equivalent to their separated forms.
@@ -148,7 +148,7 @@ tools-deps Preserve direct dependencies; otherwise select newest (default)
 
 `-M/--mediator` is valid with `--add`, `--expand`, `--remove`, and `--list`
 when list items are supplied. It is rejected with plain `--list`, `--delete`,
-and `--mediators`.
+and `--mediators`. The `--mediators` operation does not accept other options.
 
 ## Input format
 

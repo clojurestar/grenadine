@@ -134,6 +134,7 @@ write_deps() {
 }
 
 check "version" 0 "^grenadine v${version_pattern}$" "$grenadine" --version
+check "removed version shortcut" 1 'unknown option: -V' "$grenadine" -V
 check "help" 0 '^Usage: grenadine' "$grenadine" --help
 help_output=$("$grenadine" --help)
 check_exact "no arguments show help" 0 "$help_output" "$grenadine"
@@ -165,7 +166,7 @@ check "operation conflict" 1 \
 check_exact "list mediation strategies" 0 \
   $'newest     Select the highest Maven-compatible version\nnearest    Select the shortest path, then declaration order\ntools-deps Preserve direct dependencies; otherwise select newest (default)' \
   "$grenadine" --mediators
-check_empty "quiet mediation strategies" 0 \
+check "mediators reject quiet" 1 '--mediators does not use --quiet' \
   "$grenadine" --quiet --mediators
 check "mediators reject items" 1 '--mediators does not accept items' \
   "$grenadine" --mediators demo/root
