@@ -143,3 +143,4 @@ release-mark-deployed:
 	$Q '$(RELEASE)' mark-deployed '$(VERSION)'
 
 MAKES-CLEAN += .cache/clojure .cache/jolt .cache/source-stage .cache/release .cpcache target bin dist www/site
+MAKES-REALCLEAN += www/venv

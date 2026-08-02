@@ -4,6 +4,7 @@
 /jolt/
 /bin/
 /dist/
+/pom.xml
 /www/site/
 /www/venv/
 *.md
