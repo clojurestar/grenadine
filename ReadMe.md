@@ -35,16 +35,18 @@ The native `grenadine` command installs the Maven dependencies from a local or
 remote `deps.edn` source without Java:
 
 ```sh
-grenadine deps.edn
-grenadine --repository=my-m2 deps.edn
-grenadine --quiet deps.edn
+grenadine --add deps.edn
+grenadine --repository=my-m2 --add deps.edn
+grenadine --quiet --add deps.edn
 grenadine --list
+grenadine --list deps.edn
 grenadine --repository=my-m2 --list
 grenadine --add nrepl/bencode 1.1.0 clj-commons/clj-yaml
-grenadine --remove nrepl/bencode 1.1.0 clj-commons/clj-yaml
-grenadine --resolve org.yamlscript/ys.v0
-grenadine --resolver=newest --resolve org.yamlscript/ys.v0
-grenadine --resolvers
+grenadine --delete nrepl/bencode 1.1.0
+grenadine --remove clj-commons/clj-yaml
+grenadine --expand org.yamlscript/ys.v0
+grenadine -M newest --expand org.yamlscript/ys.v0
+grenadine --mediators
 grenadine --help
 grenadine --version
 ```
@@ -53,7 +55,7 @@ HTTP and HTTPS URLs are accepted directly. GitHub `blob` links are
 automatically fetched as raw content:
 
 ```sh
-grenadine --repository=my-m2 \
+grenadine --repository=my-m2 --add \
   https://github.com/seancorfield/honeysql/blob/develop/deps.edn
 ```
 
@@ -65,30 +67,24 @@ precedence over `:mvn/local-repo` in the deps source,
 `GRENADINE_LOCAL_REPOSITORY`, and the default
 `$HOME/.m2/repository`, in that order.
 
-`--add` accepts one or more `group/artifact` names, each optionally followed
-by a version. When a version is omitted, Grenadine selects the Maven metadata
-release (or latest non-SNAPSHOT version) and installs its transitive
-dependencies. `--remove` removes only the requested library version; omit the
-version to remove every locally installed version of that library. It does not
-garbage-collect transitive dependencies.
-
-`--resolve` performs the same transitive graph resolution without installing
-JARs. It caches required POMs and prints the selected `group/artifact VERSION`
-coordinates in sorted order. Use `--resolver` with deps-source installation,
-`--add`, or `--resolve` to select `newest`, `nearest`, or `tools-deps`
-mediation. The default is `tools-deps`; `--resolvers` describes all three.
+`--add`, `--list`, `--delete`, `--remove`, and `--expand` accept mixed lists of
+`group/artifact [version]` requests and local or remote deps sources. `--delete`
+removes only explicit coordinates; `--remove` expands and removes complete
+dependency closures. `--expand` prints the selected graph without installing
+JARs. Use `-M` or `--mediator` to select `newest`, `nearest`, or `tools-deps`.
+The default is `tools-deps`; `--mediators` describes all three.
 
 On Bash and Zsh, the current release can also be downloaded, verified, and run
 from a temporary cache without installing it on `PATH`:
 
 ```sh
-$(source <(curl -sL clojurestar.github.io/grenadine/get)) deps.edn
+$(source <(curl -sL clojurestar.github.io/grenadine/get)) --add deps.edn
 ```
 
 PowerShell users can run:
 
 ```powershell
-& ([scriptblock]::Create((Invoke-RestMethod https://clojurestar.github.io/grenadine/get.ps1))) deps.edn
+& ([scriptblock]::Create((Invoke-RestMethod https://clojurestar.github.io/grenadine/get.ps1))) --add deps.edn
 ```
 
 Release binaries cover Linux on amd64, arm64, and armv6; macOS and Windows on

@@ -48,14 +48,17 @@ a Clojure dialect or a JVM.
 Use an installed `grenadine` binary like this:
 
 ```sh
-grenadine deps.edn
-grenadine --repository=my-m2 deps.edn
-grenadine --quiet deps.edn
+grenadine --add deps.edn
+grenadine --repository=my-m2 --add deps.edn
+grenadine --quiet --add deps.edn
+grenadine --list
+grenadine --list deps.edn
 grenadine --add nrepl/bencode 1.1.0 clj-commons/clj-yaml
-grenadine --remove nrepl/bencode 1.1.0 clj-commons/clj-yaml
-grenadine --resolve org.yamlscript/ys.v0
-grenadine --resolver=newest --resolve org.yamlscript/ys.v0
-grenadine --resolvers
+grenadine --delete nrepl/bencode 1.1.0
+grenadine --remove clj-commons/clj-yaml
+grenadine --expand org.yamlscript/ys.v0
+grenadine -M newest --expand org.yamlscript/ys.v0
+grenadine --mediators
 grenadine --help
 grenadine --version
 ```
@@ -63,7 +66,7 @@ grenadine --version
 HTTP and HTTPS URLs are accepted directly, including GitHub `blob` links:
 
 ```sh
-grenadine --repository=my-m2 \
+grenadine --repository=my-m2 --add \
   https://github.com/seancorfield/honeysql/blob/develop/deps.edn
 ```
 
@@ -80,13 +83,13 @@ On Bash and Zsh, the current release can be downloaded, verified, and run from
 a temporary cache without installing it on `PATH`:
 
 ```sh
-$(source <(curl -sL clojurestar.github.io/grenadine/get)) deps.edn
+$(source <(curl -sL clojurestar.github.io/grenadine/get)) --add deps.edn
 ```
 
 PowerShell users can run:
 
 ```powershell
-& ([scriptblock]::Create((Invoke-RestMethod https://clojurestar.github.io/grenadine/get.ps1))) deps.edn
+& ([scriptblock]::Create((Invoke-RestMethod https://clojurestar.github.io/grenadine/get.ps1))) --add deps.edn
 ```
 
 ## Platforms

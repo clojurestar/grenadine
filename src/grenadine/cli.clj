@@ -9,23 +9,25 @@
 
 (def usage
   (str
-   "Usage: grenadine [OPTIONS] DEPS-SOURCE\n"
-   "       grenadine [--repository DIR] --list\n"
-   "       grenadine [--repository DIR] --add NAME [VERSION]...\n"
-   "       grenadine [--repository DIR] --remove NAME [VERSION]...\n"
-   "       grenadine [--repository DIR] [--resolver MODE] --resolve NAME [VERSION]...\n"
-   "       grenadine --resolvers\n"
+   "Usage: grenadine\n"
+   "       grenadine [OPTIONS] --list [ITEM...]\n"
+   "       grenadine [OPTIONS] [-M MODE] --add ITEM...\n"
+   "       grenadine [OPTIONS] --delete ITEM...\n"
+   "       grenadine [OPTIONS] [-M MODE] --remove ITEM...\n"
+   "       grenadine [OPTIONS] [-M MODE] --expand ITEM...\n"
+   "       grenadine [OPTIONS] --mediators\n"
    "       grenadine --help\n"
    "       grenadine --version\n\n"
-   "Install the Maven dependencies in a local or remote DEPS-SOURCE.\n\n"
+   "ITEM is NAME [VERSION] or a local/remote DEPS-SOURCE.\n\n"
    "Options:\n"
    "  -R, --repository DIR  Use this Maven repository\n"
-   "      --list            List libraries in the Maven repository\n"
-   "      --add             Add libraries to the Maven repository\n"
-   "      --remove          Remove libraries from the Maven repository\n"
-   "      --resolve         Resolve libraries without installing JARs\n"
-   "      --resolver MODE   Use newest, nearest, or tools-deps\n"
-   "      --resolvers       List the available resolver methodologies\n"
+   "  -M, --mediator MODE   Use newest, nearest, or tools-deps\n"
+   "      --list            List the repository or an expanded graph\n"
+   "      --add             Install an expanded dependency graph\n"
+   "      --delete          Delete only explicitly requested coordinates\n"
+   "      --remove          Delete complete expanded dependency closures\n"
+   "      --expand          Expand dependencies without installing JARs\n"
+   "      --mediators       List the available mediation strategies\n"
    "  -q, --quiet           Suppress non-error output\n"
    "  -h, --help            Show this help\n"
    "  -V, --version         Show the Grenadine version"))
@@ -56,25 +58,28 @@
         (= "--add" argument)
         (recur (next remaining) (assoc options :add true))
 
+        (= "--delete" argument)
+        (recur (next remaining) (assoc options :delete true))
+
         (= "--remove" argument)
         (recur (next remaining) (assoc options :remove true))
 
-        (= "--resolve" argument)
-        (recur (next remaining) (assoc options :resolve true))
+        (= "--expand" argument)
+        (recur (next remaining) (assoc options :expand true))
 
-        (= "--resolvers" argument)
-        (recur (next remaining) (assoc options :resolvers true))
+        (= "--mediators" argument)
+        (recur (next remaining) (assoc options :mediators true))
 
-        (= "--resolver" argument)
-        (if-let [resolver (second remaining)]
-          (recur (drop 2 remaining) (assoc options :resolver resolver))
-          (fail! "--resolver requires a methodology"))
+        (contains? #{"-M" "--mediator"} argument)
+        (if-let [mediator (second remaining)]
+          (recur (drop 2 remaining) (assoc options :mediator mediator))
+          (fail! (str argument " requires a strategy")))
 
-        (.startsWith argument "--resolver=")
-        (let [resolver (subs argument (count "--resolver="))]
-          (when (empty? resolver)
-            (fail! "--resolver requires a methodology"))
-          (recur (next remaining) (assoc options :resolver resolver)))
+        (.startsWith argument "--mediator=")
+        (let [mediator (subs argument (count "--mediator="))]
+          (when (empty? mediator)
+            (fail! "--mediator requires a strategy"))
+          (recur (next remaining) (assoc options :mediator mediator)))
 
         (contains? #{"-R" "--repository"} argument)
         (if-let [repository (second remaining)]
@@ -97,12 +102,12 @@
 
 (def library-pattern #"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 (def component-pattern #"^[A-Za-z0-9_.-]+$")
-(def resolver-methodologies
+(def mediator-strategies
   {"newest" :newest
    "nearest" :nearest
    "tools-deps" :tools-deps})
 
-(def resolver-descriptions
+(def mediator-descriptions
   [["newest" "Select the highest Maven-compatible version"]
    ["nearest" "Select the shortest path, then declaration order"]
    ["tools-deps"
@@ -128,43 +133,25 @@
     (fail! (str "invalid version: " value)))
   value)
 
-(defn- coordinate-requests [operands]
-  (loop [remaining operands requests []]
-    (if-let [name (first remaining)]
-      (let [coordinate (library-coordinate name)
-            following (second remaining)
-            version (when (and following
-                               (not (str/includes? following "/")))
-                      (valid-version! following))]
-        (recur (drop (if version 2 1) remaining)
-               (conj requests (assoc coordinate :version version))))
-      requests)))
-
-(defn- validate-root-requests! [requests]
-  (let [names (map :name requests)]
-    (when-not (= (count names) (count (set names)))
-      (fail! "each library name may be specified only once")))
-  requests)
-
-(defn- resolver-methodology [value]
+(defn- mediation-strategy [value]
   (if value
-    (or (get resolver-methodologies value)
-        (fail! (str "unknown resolver methodology: " value
+    (or (get mediator-strategies value)
+        (fail! (str "unknown mediation strategy: " value
                     " (expected newest, nearest, or tools-deps)")))
     :tools-deps))
 
-(defn- list-resolvers! [{:keys [quiet]}]
+(defn- list-mediators! [{:keys [quiet]}]
   (when-not quiet
-    (doseq [[name description] resolver-descriptions]
+    (doseq [[name description] mediator-descriptions]
       (fmt.Fprintln os.Stdout (fmt.Sprintf "%-10s %s" name description)))))
 
-(defn- validate-remove-requests! [requests]
+(defn- validate-delete-requests! [requests]
   (doseq [[name entries] (group-by :name requests)]
     (let [versions (map :version entries)]
       (when-not (= (count versions) (count (set versions)))
-        (fail! (str "duplicate removal request: " name)))
+        (fail! (str "duplicate deletion request: " name)))
       (when (and (some nil? versions) (> (count versions) 1))
-        (fail! (str "cannot combine all-version and version removals for "
+        (fail! (str "cannot combine all-version and version deletions for "
                     name)))))
   requests)
 
@@ -249,6 +236,106 @@
         config
         (assoc config :deps {})))))
 
+(defn- explicit-source?
+  [value host]
+  (or (source/remote? value)
+      (str/ends-with? (str/lower-case value) ".edn")
+      ((:exists? host) value)))
+
+(defn- parse-items
+  [operands host]
+  (loop [remaining operands items []]
+    (if-let [value (first remaining)]
+      (cond
+        (explicit-source? value host)
+        (recur (next remaining)
+               (conj items {:kind :source :source value}))
+
+        (re-matches library-pattern value)
+        (let [request (library-coordinate value)
+              following (second remaining)
+              version
+              (when (and following
+                         (not (explicit-source? following host))
+                         (not (re-matches library-pattern following)))
+                (valid-version! following))]
+          (recur (drop (if version 2 1) remaining)
+                 (conj items
+                       {:kind :library
+                        :request (assoc request :version version)})))
+
+        :else
+        (recur (next remaining)
+               (conj items {:kind :source :source value})))
+      items)))
+
+(defn- dependency-request
+  [lib coordinate input]
+  (let [request (library-coordinate (str lib))]
+    (when-not (and (map? coordinate) (seq (:mvn/version coordinate)))
+      (fail! (str input " dependency " lib " requires :mvn/version")))
+    (assoc request
+           :version (:mvn/version coordinate)
+           :coordinate coordinate
+           :input input)))
+
+(defn- input-bundle
+  [operands host]
+  (reduce
+   (fn [bundle item]
+     (if (= :library (:kind item))
+       (update bundle :requests conj (:request item))
+       (let [input (:source item)
+             config (read-config input host)
+             requests
+             (mapv (fn [[lib coordinate]]
+                     (dependency-request lib coordinate input))
+                   (:deps config))]
+         (cond-> (-> bundle
+                     (update :requests into requests)
+                     (update :mvn-repos merge (:mvn/repos config)))
+           (contains? config :mvn/local-repo)
+           (assoc :local-repo (:mvn/local-repo config))))))
+   {:requests [] :mvn-repos {} :local-repo nil}
+   (parse-items operands host)))
+
+(defn- bundle-repos
+  [bundle]
+  (configured-repos {:mvn/repos (:mvn-repos bundle)}))
+
+(declare resolve-requests)
+
+(defn- last-requests
+  [requests]
+  (->> requests
+       (map-indexed vector)
+       (reduce (fn [selected [index request]]
+                 (assoc selected (:name request) [index request]))
+               {})
+       vals
+       (sort-by first)
+       (mapv second)))
+
+(defn- resolved-deps
+  [bundle host]
+  (let [repos (bundle-repos bundle)
+        requests (resolve-requests (last-requests (:requests bundle))
+                                  host repos)]
+    (reduce
+     (fn [deps {:keys [name version coordinate]}]
+       (assoc deps
+              (symbol name)
+              (or coordinate {:mvn/version version})))
+     {}
+     requests)))
+
+(defn- operation-options
+  [parsed bundle host]
+  {:host host
+   :repos (bundle-repos bundle)
+   :local-repo (or (:repository parsed) (:local-repo bundle))
+   :mediation (:mediation parsed)})
+
 (defn- print-installed!
   [{:keys [group artifact version]}]
   (fmt.Fprintln os.Stdout
@@ -264,13 +351,13 @@
                        "  Total: " (+ installed already)))))
 
 (defn- install-deps!
-  [deps {:keys [host repos local-repo quiet resolver]}]
+  [deps {:keys [host repos local-repo quiet mediation]}]
   (let [result
         (grenadine/install!
          deps
          (cond-> {:host host
                   :repos repos
-                  :mediation resolver}
+                  :mediation mediation}
            local-repo (assoc :local-repo local-repo)
            (not quiet) (assoc :on-install print-installed!)))]
     (when-not quiet
@@ -278,17 +365,6 @@
         (fmt.Fprintln os.Stderr
                       (str "grenadine: warning: " (pr-str warning))))
       (print-summary! result))))
-
-(defn- install! [{:keys [file repository quiet resolver]}]
-  (let [host (glojure-host/host)
-        config (read-config file host)]
-    (install-deps!
-     (:deps config)
-     {:host host
-      :repos (configured-repos config)
-      :local-repo (or repository (:mvn/local-repo config))
-      :resolver resolver
-      :quiet quiet})))
 
 (defn- resolve-requests
   [requests host repos]
@@ -300,49 +376,70 @@
               (repo/latest-version request {:host host :repos repos}))))
    requests))
 
-(defn- requests->deps [requests]
-  (into {}
-        (map (fn [{:keys [name version]}]
-               [(symbol name) {:mvn/version version}]))
-        requests))
-
-(defn- add! [{:keys [repository quiet operands resolver]}]
+(defn- graph-input
+  [parsed]
   (let [host (glojure-host/host)
-        repos (configured-repos {})
-        requests (validate-root-requests! (coordinate-requests operands))
-        resolved (resolve-requests requests host repos)
-        deps (requests->deps resolved)]
-    (install-deps!
-     deps
-     {:host host
-      :repos repos
-      :local-repo repository
-      :resolver resolver
-      :quiet quiet})))
+        bundle (input-bundle (:operands parsed) host)]
+    {:host host
+     :bundle bundle
+     :deps (resolved-deps bundle host)
+     :options (operation-options parsed bundle host)}))
 
-(defn- resolve! [{:keys [repository quiet operands resolver]}]
-  (let [host (glojure-host/host)
-        repos (configured-repos {})
-        requests (validate-root-requests! (coordinate-requests operands))
-        deps (requests->deps (resolve-requests requests host repos))
-        resolution
-        (grenadine/resolve-graph
-         deps
-         (cond-> {:host host
-                  :repos repos
-                  :mediation resolver}
-           repository (assoc :local-repo repository)))
-        coordinates
-        (->> (:selected resolution)
-             vals
-             (map :coords)
-             (sort-by (juxt :group :artifact :version)))]
+(defn- add!
+  [{:keys [quiet] :as parsed}]
+  (let [{:keys [deps options]} (graph-input parsed)]
+    (install-deps! deps (assoc options :quiet quiet))))
+
+(defn- expand-result
+  [parsed]
+  (let [{:keys [deps options] :as input} (graph-input parsed)
+        resolution (grenadine/resolve-graph deps options)
+        coordinates (->> (:selected resolution)
+                         vals
+                         (map :coords)
+                         (sort-by (juxt :group :artifact :version))
+                         vec)]
+    (assoc input :resolution resolution :coordinates coordinates)))
+
+(defn- print-expansion!
+  [{:keys [quiet] :as parsed}]
+  (let [{:keys [resolution coordinates]} (expand-result parsed)]
     (when-not quiet
       (doseq [{:keys [group artifact version]} coordinates]
         (fmt.Fprintln os.Stdout (str group "/" artifact " " version)))
       (doseq [warning (:warnings resolution)]
         (fmt.Fprintln os.Stderr
                       (str "grenadine: warning: " (pr-str warning)))))))
+
+(defn- installed-coordinate?
+  [host local-repo coordinate]
+  ((:exists? host)
+   (path:filepath.Join local-repo (lock/artifact-path coordinate))))
+
+(defn- list-expanded!
+  [{:keys [quiet] :as parsed}]
+  (let [{:keys [host options resolution coordinates]}
+        (expand-result parsed)
+        local-repo (repo/local-repo options)
+        statuses
+        (mapv (fn [coordinate]
+                [coordinate
+                 (installed-coordinate? host local-repo coordinate)])
+              coordinates)
+        installed (count (filter second statuses))
+        missing (- (count statuses) installed)]
+    (when-not quiet
+      (doseq [[{:keys [group artifact version]} present?] statuses]
+        (fmt.Fprintln os.Stdout
+                      (str group "/" artifact " " version
+                           (when-not present? " MISSING"))))
+      (doseq [warning (:warnings resolution)]
+        (fmt.Fprintln os.Stderr
+                      (str "grenadine: warning: " (pr-str warning))))
+      (fmt.Fprintln os.Stdout
+                    (str "=> Installed: " installed
+                         "  Missing: " missing
+                         "  Total: " (count statuses))))))
 
 (defn- absolute-path [value]
   (let [[absolute error] (path:filepath.Abs value)]
@@ -378,21 +475,17 @@
   (fmt.Fprintln os.Stdout
                 (str action " " name " " (or version "(all versions)"))))
 
-(defn- remove! [{:keys [repository quiet operands]}]
-  (let [host (glojure-host/host)
-        root (absolute-path (repo/local-repo {:host host
-                                              :local-repo repository}))
-        requests
-        (mapv #(removal-target root %)
-              (validate-remove-requests!
-               (coordinate-requests operands)))
+(defn- delete-requests!
+  [requests root host quiet action]
+  (let [requests (mapv #(removal-target root %)
+                       (validate-delete-requests! requests))
         result
         (reduce
          (fn [counts {:keys [target] :as request}]
            (if ((:exists? host) target)
              (do
                ((:delete! host) target)
-               (when-not quiet (print-removal! "Removed" request))
+               (when-not quiet (print-removal! action request))
                (update counts :removed inc))
              (do
                (when-not quiet (print-removal! "Missing" request))
@@ -401,53 +494,162 @@
          requests)]
     (when-not quiet
       (fmt.Fprintln os.Stdout
-                    (str "=> Removed: " (:removed result)
+                    (str "=> " action ": " (:removed result)
                          "  Missing: " (:missing result)
                          "  Total: " (+ (:removed result)
                                         (:missing result)))))))
 
+(defn- delete!
+  [{:keys [quiet] :as parsed}]
+  (let [host (glojure-host/host)
+        bundle (input-bundle (:operands parsed) host)
+        root (absolute-path
+              (repo/local-repo
+               {:host host
+                :local-repo (or (:repository parsed)
+                                (:local-repo bundle))}))]
+    (delete-requests! (:requests bundle) root host quiet "Deleted")))
+
+(defn- coordinate-request
+  [{:keys [group artifact version]}]
+  {:name (str group "/" artifact)
+   :group group
+   :artifact artifact
+   :version version})
+
+(defn- selected-coordinates
+  [resolution]
+  (->> (:selected resolution)
+       vals
+       (map :coords)))
+
+(defn- remove!
+  [{:keys [quiet] :as parsed}]
+  (let [host (glojure-host/host)
+        bundle (input-bundle (:operands parsed) host)
+        options (operation-options parsed bundle host)
+        root (absolute-path (repo/local-repo options))
+        installed (repository-coordinates root)
+        installed-set
+        (set (map (juxt :group :artifact :version) installed))
+        selected-requests (last-requests (:requests bundle))
+        explicit
+        (filter :version selected-requests)
+        implicit
+        (remove :version selected-requests)
+        present-explicit
+        (filter #(contains? installed-set
+                            [(:group %) (:artifact %) (:version %)])
+                explicit)
+        missing-explicit
+        (remove #(contains? installed-set
+                            [(:group %) (:artifact %) (:version %)])
+                explicit)
+        implicit-roots
+        (mapcat
+         (fn [request]
+           (let [matches
+                 (filter #(and (= (:group request) (:group %))
+                               (= (:artifact request) (:artifact %)))
+                         installed)]
+             (if (seq matches)
+               (map coordinate-request matches)
+               [request])))
+         implicit)
+        missing-implicit (filter (complement :version) implicit-roots)
+        concrete-implicit (filter :version implicit-roots)
+        warnings (atom [])
+        fetch-pom (repo/pom-fetcher (assoc options :repos []))
+        pom-fn
+        (fn [coordinate]
+          (try
+            (grenadine/effective-pom coordinate {:fetch-pom fetch-pom})
+            (catch Exception error
+              (swap! warnings conj
+                     {:warning :missing-local-pom
+                      :coordinate coordinate
+                      :message (fmt.Sprint error)})
+              {:coords coordinate :deps []})))
+        resolve-one
+        (fn [requests]
+          (when (seq requests)
+            (grenadine/resolve-graph
+             (reduce (fn [deps request]
+                       (assoc deps (symbol (:name request))
+                              (or (:coordinate request)
+                                  {:mvn/version (:version request)})))
+                     {}
+                     requests)
+             {:pom-fn pom-fn :mediation (:mediation parsed)})))
+        combined (resolve-one present-explicit)
+        separate (keep #(resolve-one [%]) concrete-implicit)
+        coordinates
+        (->> (concat (selected-coordinates combined)
+                     (mapcat selected-coordinates separate))
+             (reduce (fn [selected coordinate]
+                       (assoc selected
+                              [(:group coordinate)
+                               (:artifact coordinate)
+                               (:version coordinate)]
+                              coordinate))
+                     {})
+             vals
+             (sort-by (juxt :group :artifact :version)))
+        requests
+        (concat (map coordinate-request coordinates)
+                missing-explicit
+                missing-implicit)]
+    (when-not quiet
+      (doseq [warning @warnings]
+        (fmt.Fprintln os.Stderr
+                      (str "grenadine: warning: " (pr-str warning)))))
+    (delete-requests! (vec requests) root host quiet "Removed")))
+
 (defn -main [& argv]
   (try
     (github.com:glojurelang:glojure:pkg:stdlib:clojure:core:protocols.LoadNS)
-    (let [{:keys [help version list add remove resolve resolvers operands
+    (let [{:keys [help version list add delete remove expand mediators operands
                   repository]
            :as parsed}
           (parse-options argv)
-          modes (filter identity [list add remove resolve resolvers])
-          methodology (resolver-methodology (:resolver parsed))
+          modes (filter identity [list add delete remove expand mediators])
+          mediation (mediation-strategy (:mediator parsed))
           options (assoc parsed
-                         :file (first operands)
-                         :resolver methodology)]
+                         :mediation mediation)]
       (cond
         help (fmt.Fprintln os.Stdout usage)
         version (fmt.Fprintln os.Stdout
                               (str "grenadine v" build-info/version))
         (> (count modes) 1)
-        (fail! (str "--list, --add, --remove, --resolve, and --resolvers "
+        (fail! (str "--list, --add, --delete, --remove, --expand, and "
+                    "--mediators "
                     "are mutually exclusive"))
-        (and (:resolver parsed) (or list remove resolvers))
-        (fail! "--resolver is only valid with --resolve, --add, or a deps source")
-        resolvers
+        (and (:mediator parsed)
+             (not (or add remove expand (and list (seq operands)))))
+        (fail! (str "--mediator is only valid with --add, --remove, "
+                    "--expand, or --list with items"))
+        mediators
         (cond
-          (seq operands) (fail! "--resolvers does not accept arguments")
-          repository (fail! "--resolvers does not use --repository")
-          :else (list-resolvers! options))
+          (seq operands) (fail! "--mediators does not accept items")
+          repository (fail! "--mediators does not use --repository")
+          :else (list-mediators! options))
         list (if (seq operands)
-               (fail! "--list does not accept a deps source")
+               (list-expanded! options)
                (list-repository! options))
         add (if (empty? operands)
-              (fail! "--add requires at least one library name")
+              (fail! "--add requires at least one item")
               (add! options))
+        delete (if (empty? operands)
+                 (fail! "--delete requires at least one item")
+                 (delete! options))
         remove (if (empty? operands)
-                 (fail! "--remove requires at least one library name")
+                 (fail! "--remove requires at least one item")
                  (remove! options))
-        resolve (if (empty? operands)
-                  (fail! "--resolve requires at least one library name")
-                  (resolve! options))
-        (empty? operands) (fail! "a deps source is required")
-        (> (count operands) 1)
-        (fail! (str "unexpected argument: " (second operands)))
-        :else (install! options)))
+        expand (if (empty? operands)
+                 (fail! "--expand requires at least one item")
+                 (print-expansion! options))
+        (empty? operands) (fmt.Fprintln os.Stdout usage)
+        :else (fail! "an explicit operation is required")))
     (catch Exception error
       (fmt.Fprintln os.Stderr (str "grenadine: " (fmt.Sprint error)))
       (exit! 1))))

@@ -22,7 +22,7 @@ namespaces. Start with [Getting started](getting-started.md) and the
 Run without installing:
 
 ```sh
-$(source <(curl -sL clojurestar.github.io/grenadine/get)) deps.edn
+$(source <(curl -sL clojurestar.github.io/grenadine/get)) --add deps.edn
 ```
 
 The sourced script prints the verified executable path. Command substitution
@@ -35,7 +35,7 @@ base URL.
 ## PowerShell
 
 ```powershell
-& ([scriptblock]::Create((Invoke-RestMethod https://clojurestar.github.io/grenadine/get.ps1))) deps.edn
+& ([scriptblock]::Create((Invoke-RestMethod https://clojurestar.github.io/grenadine/get.ps1))) --add deps.edn
 ```
 
 The PowerShell launcher verifies the ZIP with `Get-FileHash`, expands it below

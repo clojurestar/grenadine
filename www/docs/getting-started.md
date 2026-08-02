@@ -47,19 +47,19 @@ Given a `deps.edn` file:
 an installed binary populates the standard Maven repository with:
 
 ```sh
-grenadine deps.edn
+grenadine --add deps.edn
 ```
 
 To use another repository:
 
 ```sh
-grenadine --repository=my-m2 deps.edn
+grenadine --repository=my-m2 --add deps.edn
 ```
 
 Or use a deps.edn URL:
 
 ```sh
-grenadine --repository=my-m2 \
+grenadine --repository=my-m2 --add \
   https://github.com/seancorfield/honeysql/blob/develop/deps.edn
 ```
 
@@ -71,36 +71,36 @@ grenadine --add nrepl/bencode 1.1.0 \
   clj-commons/clj-yaml org.flatland/ordered
 ```
 
-Remove one version by naming it, or omit the version to remove every locally
+Delete one exact version, or omit the version to delete every locally
 installed version of that library:
 
 ```sh
-grenadine --remove nrepl/bencode 1.1.0 \
+grenadine --delete nrepl/bencode 1.1.0 \
   clj-commons/clj-yaml org.flatland/ordered
 ```
 
-Removal affects only the requested coordinates. It does not remove transitive
-dependencies that may no longer be needed.
+Use `--remove` instead when the complete expanded dependency closure should be
+deleted.
 
 Resolve and inspect a complete dependency graph without installing any JARs:
 
 ```sh
-grenadine --resolve org.yamlscript/ys.v0
+grenadine --expand org.yamlscript/ys.v0
 ```
 
 Required POMs are reused from or cached in the selected local repository. The
 result is a sorted list of selected coordinates. Choose another conflict
-resolver, or list the available methodologies, with:
+mediator, or list the available strategies, with:
 
 ```sh
-grenadine --resolver=newest --resolve org.yamlscript/ys.v0
-grenadine --resolvers
+grenadine -M newest --expand org.yamlscript/ys.v0
+grenadine --mediators
 ```
 
 You can also run the latest release without installing `grenadine` on your PATH:
 
 ```sh
-$ $(source <(curl -sL clojurestar.github.io/grenadine/get)) \
+$ $(source <(curl -sL clojurestar.github.io/grenadine/get)) --add \
   https://github.com/seancorfield/honeysql/blob/develop/deps.edn
 Installed org.clojure/clojure 1.10.3
 Installed org.clojure/core.specs.alpha 0.2.56

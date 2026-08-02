@@ -1,152 +1,154 @@
 # CLI reference
 
 ```text
-Usage: grenadine [OPTIONS] DEPS-SOURCE
-       grenadine [--repository DIR] --list
-       grenadine [--repository DIR] --add NAME [VERSION]...
-       grenadine [--repository DIR] --remove NAME [VERSION]...
-       grenadine [--repository DIR] [--resolver MODE] --resolve NAME [VERSION]...
-       grenadine --resolvers
+Usage: grenadine
+       grenadine [OPTIONS] --list [ITEM...]
+       grenadine [OPTIONS] [-M MODE] --add ITEM...
+       grenadine [OPTIONS] --delete ITEM...
+       grenadine [OPTIONS] [-M MODE] --remove ITEM...
+       grenadine [OPTIONS] [-M MODE] --expand ITEM...
+       grenadine [OPTIONS] --mediators
        grenadine --help
        grenadine --version
 ```
 
-`DEPS-SOURCE` is a local path or an HTTP/HTTPS URL containing a deps.edn-style
-EDN map. GitHub `blob` URLs are requested as raw content automatically.
+An `ITEM` is either `NAME [VERSION]` or a local/remote deps source. Operations
+accept mixed item lists. Bare `grenadine` prints the same help as `--help`;
+operands without an explicit operation are rejected.
 
 ## Options
 
 | Short | Long | Behavior |
 | --- | --- | --- |
-| `-R DIR` | `--repository DIR` | Use this Maven repository. `--repository=DIR` is also accepted. |
-| | `--list` | List libraries in the selected Maven repository. |
-| | `--add` | Install one or more libraries. A version after each name is optional. |
-| | `--remove` | Remove one or more libraries. A version after each name is optional. |
-| | `--resolve` | Resolve complete dependency graphs without installing JARs. |
-| | `--resolver MODE` | Use `newest`, `nearest`, or `tools-deps`. `--resolver=MODE` is also accepted. |
-| | `--resolvers` | Describe the available resolver methodologies. |
-| `-q` | `--quiet` | Suppress installed lines, warnings, and the summary. Errors still use stderr. |
+| `-R DIR` | `--repository DIR` | Use this local Maven repository. |
+| `-M MODE` | `--mediator MODE` | Use `newest`, `nearest`, or `tools-deps`. |
+| | `--list` | List the repository or report an expanded graph's local status. |
+| | `--add` | Expand and install all selected dependencies. |
+| | `--delete` | Delete only explicitly requested coordinates. |
+| | `--remove` | Expand inputs and delete their complete dependency closures. |
+| | `--expand` | Print an expanded graph without installing JARs. |
+| | `--mediators` | Describe the available mediation strategies. |
+| `-q` | `--quiet` | Suppress non-error operational output. |
 | `-h` | `--help` | Print usage. |
 | `-V` | `--version` | Print `grenadine vVERSION`. |
 
-`--list`, `--add`, `--remove`, `--resolve`, `--resolvers`, and a dependency
-source are mutually exclusive operations. `--resolver` modifies `--resolve`,
-`--add`, or deps-source installation. Unknown options, missing option values,
-invalid methodologies, and extra arguments exit with status 1.
+Exactly one operation is accepted. `--repository=DIR` and
+`--mediator=MODE` are equivalent to their separated forms.
 
-## List a repository
+## Mixed inputs
+
+```sh
+grenadine --add \
+  nrepl/bencode 1.1.0 \
+  deps.edn \
+  clj-commons/clj-yaml \
+  https://example.org/other-deps.edn
+```
+
+HTTP/HTTPS URLs, existing files, and `.edn` paths are recognized as sources.
+Each qualified library name may be followed by a version; omitted versions
+select the latest Maven release. Source roots and named roots are combined in
+operand order, with a later declaration replacing an earlier declaration of
+the same library.
+
+Remote repository maps are also merged in operand order. The last source-level
+`:mvn/local-repo` wins, while `-R/--repository` overrides every source.
+
+## List
+
+With no items, `--list` prints every conventional main-artifact JAR in the
+local repository, sorted by coordinate. It does not contact remotes or print a
+summary.
 
 ```sh
 grenadine --list
-grenadine --repository=my-m2 --list
+grenadine -R my-m2 --list
 ```
 
-Listing uses `--repository`, then `GRENADINE_LOCAL_REPOSITORY`, then
-`$HOME/.m2/repository`. It prints the sorted Maven coordinate and version of
-each conventional main artifact JAR:
-
-```text
-org.clojure/clojure 1.10.3
-org.clojure/spec.alpha 0.2.194
-```
-
-POM-only entries and classified artifacts such as sources and javadoc JARs are
-not listed. `--list` does not accept a dependency source. With `--quiet`, it
-validates that the repository can be read but prints nothing.
-
-## Add libraries
+With items, `--list` composes and expands them like `--expand`, then checks
+whether each selected JAR exists locally:
 
 ```sh
-grenadine --add nrepl/bencode 1.1.0 \
-  clj-commons/clj-yaml org.flatland/ordered
+grenadine -M nearest --list deps.edn org.example/library 2.0.0
 ```
-
-Library names must be qualified `group/artifact` names. Each name may be
-followed by a version. When the next argument is another qualified name, the
-version was omitted. Grenadine resolves all omitted versions before installing
-anything, then installs the requested roots and their transitive dependencies
-using tools.deps mediation.
-
-For an omitted version, Central and then Clojars Maven metadata are consulted.
-The metadata `<release>` value wins, followed by `<latest>`, followed by the
-highest listed non-SNAPSHOT version according to Maven version ordering. If
-any omitted version cannot be resolved, nothing is installed.
-
-`--add` uses `--repository`, then `GRENADINE_LOCAL_REPOSITORY`, then
-`$HOME/.m2/repository`. Its streamed installation lines and final summary have
-the same format as deps-source installation. `--quiet` suppresses them.
-
-## Resolve libraries
-
-```sh
-grenadine --resolve org.yamlscript/ys.v0
-grenadine --resolver=newest --resolve org.yamlscript/ys.v0
-```
-
-`--resolve` accepts the same `NAME [VERSION]...` sequence as `--add`. It
-resolves omitted root versions from Maven metadata, builds each effective POM,
-walks the complete transitive graph, and mediates version conflicts. It prints
-every selected coordinate in deterministic `group/artifact VERSION` order:
 
 ```text
-org.clojure/clojure VERSION
-org.yamlscript/ys.v0 VERSION
+demo/branch 1.0.0
+demo/core 2.0.0 MISSING
+demo/root 1.0.0
+=> Installed: 2  Missing: 1  Total: 3
 ```
 
-All root versions and the complete graph are resolved before output begins, so
-a failure does not produce a partial list. Required POMs are reused from or
-cached in the local repository selected by `--repository`,
-`GRENADINE_LOCAL_REPOSITORY`, or `$HOME/.m2/repository`. Artifact JARs are not
-downloaded. `--quiet` suppresses coordinates and warnings while retaining the
-success or failure exit status.
+POMs may be cached during expansion, but cached metadata does not count as an
+installed JAR.
 
-## Resolver methodologies
-
-The CLI defaults to `tools-deps` mediation for deps-source installation,
-`--add`, and `--resolve`. Select another methodology with either accepted
-option form:
+## Add and expand
 
 ```sh
-grenadine --resolver=newest --resolve org.yamlscript/ys.v0
-grenadine --resolver nearest deps.edn
+grenadine --add deps.edn org.example/library
+grenadine -M newest --expand deps.edn org.example/library 2.0.0
 ```
 
-List the names and selection rules with:
+Both operations combine all inputs and mediate once. `--add` installs the
+selected JARs and prints streamed installation lines plus its summary.
+`--expand` prints sorted `group/artifact VERSION` coordinates and installs no
+JARs. Both may cache required POM metadata.
+
+## Delete exact coordinates
+
+```sh
+grenadine --delete org.example/library 1.2.3
+grenadine --delete org.example/library
+grenadine --delete deps.edn additional-deps.edn
+```
+
+A versioned name deletes that version. An unversioned name deletes all locally
+installed versions. A deps source contributes only its top-level `:deps`; it
+is not expanded. Multiple distinct explicit versions are accepted, but an
+all-version request cannot be combined with version-specific requests for the
+same library.
 
 ```text
-$ grenadine --resolvers
+Deleted org.example/library 1.2.3
+=> Deleted: 1  Missing: 0  Total: 1
+```
+
+## Remove expanded closures
+
+```sh
+grenadine --remove org.example/library 1.2.3
+grenadine --remove org.example/library
+grenadine -M tools-deps --remove deps.edn org.example/other
+```
+
+`--remove` expands versioned roots and deletes every selected coordinate,
+including transitives. An unversioned name expands every installed version and
+removes the union of those closures. Shared transitives are not protected.
+
+Removal never contacts remote repositories for POM metadata. When a local POM
+is unavailable, Grenadine removes that coordinate but warns that its unknown
+children could not be included. All inputs and graphs are prepared before the
+first deletion.
+
+```text
+Removed org.example/library 1.2.3
+=> Removed: 1  Missing: 0  Total: 1
+```
+
+## Mediation
+
+The default is `tools-deps`. List all strategies with:
+
+```text
+$ grenadine --mediators
 newest     Select the highest Maven-compatible version
 nearest    Select the shortest path, then declaration order
 tools-deps Preserve direct dependencies; otherwise select newest (default)
 ```
 
-`--resolver` is rejected with `--list`, `--remove`, and `--resolvers` because
-those operations do not perform graph mediation.
-
-## Remove libraries
-
-```sh
-grenadine --remove nrepl/bencode 1.1.0 \
-  clj-commons/clj-yaml org.flatland/ordered
-```
-
-A named version removes that version directory. An omitted version removes
-the artifact directory and therefore all its locally installed versions.
-Grenadine removes only the requested paths; it does not garbage-collect
-transitive dependencies or prune empty group directories. Missing targets are
-reported but are not errors.
-
-```text
-Removed nrepl/bencode 1.1.0
-Missing clj-commons/clj-yaml (all versions)
-=> Removed: 1  Missing: 1  Total: 2
-```
-
-All names, versions, and repository-descendant paths are validated before the
-first deletion. Repeating the exact same request, or combining an all-version
-request with a version-specific request for the same library, is rejected.
-Multiple distinct explicit versions of one library are accepted. `--quiet`
-suppresses removal lines and the summary.
+`-M/--mediator` is valid with `--add`, `--expand`, `--remove`, and `--list`
+when list items are supplied. It is rejected with plain `--list`, `--delete`,
+and `--mediators`.
 
 ## Input format
 
@@ -158,53 +160,19 @@ suppresses removal lines and the summary.
  {org.clojure/data.csv {:mvn/version "1.1.0"}}}
 ```
 
-The CLI requires a top-level EDN map. When `:deps` is present, it must be a map.
-A valid file without `:deps` is treated as an empty dependency set and reports
-zero installed, already-present, and total artifacts. Version 0.1 accepts Maven
-coordinates with `:mvn/version`; other deps.edn coordinate types are rejected.
+The source must contain an EDN map. Missing `:deps` means an empty dependency
+set. Version 0.1 accepts Maven coordinates with `:mvn/version`; unsupported
+coordinate types fail before mutation.
 
-Configured `:mvn/repos` entries are merged with the Central and Clojars
-defaults. Central and Clojars are tried first, followed by additional
-repository identifiers in sorted order.
+## Removed spellings
 
-## Repository precedence
-
-The destination repository is selected in this order:
-
-1. `-R` or `--repository`;
-2. `:mvn/local-repo` in the source;
-3. `GRENADINE_LOCAL_REPOSITORY`;
-4. `$HOME/.m2/repository`.
-
-## Output
-
-Each newly downloaded artifact is printed after it has been installed:
+The pre-0.2 implicit and resolver-oriented forms are no longer accepted:
 
 ```text
-Installed org.clojure/data.csv 1.1.0
-```
-
-Artifacts already present are not listed individually. The final line reports
-all installed and cached artifacts:
-
-```text
-=> Installed: 1  Already: 3  Total: 4
-```
-
-Warnings are written to stderr. Quiet mode suppresses all non-error output.
-
-## Examples
-
-```sh
 grenadine deps.edn
-grenadine -R my-m2 deps.edn
-grenadine --quiet deps.edn
-grenadine --list
-grenadine --add nrepl/bencode 1.1.0 clj-commons/clj-yaml
-grenadine --remove nrepl/bencode 1.1.0 clj-commons/clj-yaml
-grenadine --resolve org.yamlscript/ys.v0
-grenadine --resolver=newest --resolve org.yamlscript/ys.v0
+grenadine --resolve NAME
+grenadine --resolver MODE --resolve NAME
 grenadine --resolvers
-grenadine --repository=my-m2 \
-  https://github.com/seancorfield/honeysql/blob/develop/deps.edn
 ```
+
+Use `--add`, `--expand`, `-M/--mediator`, and `--mediators` instead.
