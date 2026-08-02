@@ -8,4 +8,4 @@
 /www/venv/
 *.md
 !/ThirdPartyNotices.md
-!/www/docs/index.md
+!/www/docs/*.md

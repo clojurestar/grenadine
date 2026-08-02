@@ -32,7 +32,7 @@ automatically fetched as raw content:
 
 ```sh
 grenadine --repository=my-m2 \
-  https://github.com/yaml/yamlscript/blob/main/core/deps.edn
+  https://github.com/seancorfield/honeysql/blob/develop/deps.edn
 ```
 
 By default, Grenadine prints each dependency immediately after installing it,

@@ -1,6 +1,6 @@
 site_name: Grenadine
 site_url: https://clojurestar.github.io/grenadine/
-site_description: A portable Maven dependency installer without Java
+site_description: Portable Maven dependency resolution for Clojure dialects
 site_author: Ingy dot Net
 
 repo_name: clojurestar/grenadine
@@ -35,7 +35,16 @@ theme:
     repo: fontawesome/brands/github
 
 nav:
-  - Grenadine: index.md
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - Library:
+    - Guide: library-guide.md
+    - Core API Reference: api-reference.md
+    - Runtime Integrations: runtime-integrations.md
+  - Command Line:
+    - Installation: installation.md
+    - CLI Reference: cli-reference.md
+  - Troubleshooting: troubleshooting.md
 
 markdown_extensions:
   - admonition

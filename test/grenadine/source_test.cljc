@@ -11,9 +11,9 @@
 
 (deftest request-url-test
   (testing "GitHub blob pages request raw content"
-    (is (= "https://github.com/yaml/yamlscript/blob/main/core/deps.edn?raw=1"
+    (is (= "https://github.com/seancorfield/honeysql/blob/develop/deps.edn?raw=1"
            (source/request-url
-            "https://github.com/yaml/yamlscript/blob/main/core/deps.edn")))
+            "https://github.com/seancorfield/honeysql/blob/develop/deps.edn")))
     (is (= "https://github.com/o/r/blob/main/deps.edn?plain=1&raw=1#L1"
            (source/request-url
             "https://github.com/o/r/blob/main/deps.edn?plain=1#L1"))))

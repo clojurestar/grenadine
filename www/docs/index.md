@@ -33,17 +33,10 @@ The portable `grenadine.core` library:
 
 The portable API lives in `grenadine.core`. Small runtime integrations provide
 filesystem, HTTP, digest, and load-path operations. Dialect-facing facades add
-familiar `add-lib`, `add-libs`, `add-deps`, and `sync-deps` entry points:
+familiar `add-lib`, `add-libs`, `add-deps`, and `sync-deps` entry points.
 
-| Runtime | Grenadine namespace |
-| --- | --- |
-| Babashka | `grenadine.bb` |
-| Glojure | `glojure.deps` |
-| Jolt | `jolt.deps` |
-| let-go | `let-go.deps` |
-
-Full library and integration documentation will be added here as the runtime
-adapters mature.
+[Get started with the library](getting-started.md){ .md-button .md-button--primary }
+[Read the core API reference](api-reference.md){ .md-button }
 
 ## Also a standalone CLI
 
@@ -66,12 +59,15 @@ HTTP and HTTPS URLs are accepted directly, including GitHub `blob` links:
 
 ```sh
 grenadine --repository=my-m2 \
-  https://github.com/yaml/yamlscript/blob/main/core/deps.edn
+  https://github.com/seancorfield/honeysql/blob/develop/deps.edn
 ```
 
 The command lists each newly installed dependency immediately, then prints
 the installed, already-present, and total counts. Quiet mode suppresses
 non-error output.
+
+[Install Grenadine](installation.md){ .md-button .md-button--primary }
+[Read the CLI reference](cli-reference.md){ .md-button }
 
 ## Run without installing
 
@@ -92,6 +88,9 @@ PowerShell users can run:
 
 Release binaries cover Linux on amd64, arm64, and armv6; macOS and Windows on
 amd64 and arm64; and FreeBSD, OpenBSD, and NetBSD on amd64 and arm64.
+
+See [Installation](installation.md#release-archives) for the complete platform
+table and archive instructions.
 
 For source, development instructions, and releases, see the
 [Grenadine repository](https://github.com/clojurestar/grenadine).
