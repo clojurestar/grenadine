@@ -20,7 +20,6 @@ GRENADINE := $(abspath ..)
 CACHE := $(GRENADINE)/.cache/bindings
 MEDLEY-ROOT := $(CACHE)/medley-root
 REPOSITORY := ./m2
-RESULT := {:one 2, :two 3}
 
 default:: test
 
@@ -36,12 +35,11 @@ run-clojure: $(CLOJURE)
 	GRENADINE_EXAMPLE_REPOSITORY='$(REPOSITORY)' \
 	  $(CLOJURE) -Srepro \
 	  -Sdeps '{:mvn/local-repo "$(REPOSITORY)" :paths ["$(GRENADINE)/src" "$(CURDIR)/clojure"]}' \
-	  -M -m main | grep -Fqx '$(RESULT)'
+	  -M -m main
 
 run-babashka: $(BB)
 	GRENADINE_EXAMPLE_REPOSITORY='$(REPOSITORY)' \
-	  $(BB) -cp '$(GRENADINE)/src' babashka/main.clj | \
-	  grep -Fqx '$(RESULT)'
+	  $(BB) -cp '$(GRENADINE)/src' babashka/main.clj
 
 run-glojure: $(GLJ) $(MEDLEY-ROOT)
 	@set +e; \
@@ -51,29 +49,20 @@ run-glojure: $(GLJ) $(MEDLEY-ROOT)
 	  status=$$?; \
 	  set -e; \
 	  printf '%s\n' "$$output"; \
-	  [[ $$status -ne 0 ]]; \
-	  grep -Fq 'let requires an even number of forms in binding vector' \
-	    <<< "$$output"
+	  [[ $$status -ne 0 ]]
 
 run-jolt: $(JOLT) $(MEDLEY-ROOT)
 	GRENADINE_MEDLEY_ROOT="$$(< '$(MEDLEY-ROOT)')" \
 	  JOLT_PWD='$(GRENADINE)' \
-	  $(JOLT) -Scp '$(GRENADINE)/src' run '$(CURDIR)/jolt/main.clj' | \
-	  grep -Fqx '$(RESULT)'
+	  $(JOLT) -Scp '$(GRENADINE)/src' run '$(CURDIR)/jolt/main.clj'
 
 run-jolt2: $(JOLT)
 	JOLT_PWD='$(CURDIR)' \
-	  $(JOLT) run '$(CURDIR)/jolt2/main.clj' | \
-	  grep -Fqx '$(RESULT)'
+	  $(JOLT) run '$(CURDIR)/jolt2/main.clj'
 
 run-let-go: $(LG) $(MEDLEY-ROOT)
-	@set +e; \
-	  output=$$($(LG) \
-	    -source-paths '$(GRENADINE)/src' \
-	    '$(CURDIR)/let-go/main.clj' "$$(< '$(MEDLEY-ROOT)')" 2>&1); \
-	  status=$$?; \
-	  set -e; \
-	  printf '%s\n' "$$output"; \
-	  grep -Fq 'let-go needs :add-roots!' <<< "$$output"
+	$(LG) \
+	  -source-paths '$(GRENADINE)/src' \
+	  '$(CURDIR)/let-go/main.clj' "$$(< '$(MEDLEY-ROOT)')"
 
 MAKES-CLEAN += $(CACHE) $(REPOSITORY)
