@@ -104,7 +104,8 @@ $(source <(curl -sL clojurestar.github.io/grenadine/get)) \
 PowerShell users can run:
 
 ```powershell
-& ([scriptblock]::Create((Invoke-RestMethod https://clojurestar.github.io/grenadine/get.ps1))) --add deps.edn
+& ([scriptblock]::Create((Invoke-RestMethod https://clojurestar.github.io/grenadine/get.ps1))) `
+  -X https://github.com/yaml/yamlscript/blob/main/core/deps.edn
 ```
 
 Release binaries cover Linux on amd64, arm64, and armv6; macOS and Windows on

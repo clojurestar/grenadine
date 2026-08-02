@@ -74,7 +74,8 @@ base URL.
 ### PowerShell
 
 ```powershell
-& ([scriptblock]::Create((Invoke-RestMethod https://clojurestar.github.io/grenadine/get.ps1))) --add deps.edn
+& ([scriptblock]::Create((Invoke-RestMethod https://clojurestar.github.io/grenadine/get.ps1))) `
+  -X https://github.com/yaml/yamlscript/blob/main/core/deps.edn
 ```
 
 The PowerShell launcher verifies the ZIP with `Get-FileHash`, expands it below
