@@ -19,13 +19,13 @@ non-JVM runtimes.
 Add the following dependency to your deps.edn file:
 
 ```clojure
-{:deps {cc.clojure/grenadine {:mvn/version "0.1.2"}}}
+{:deps {cc.clojure/grenadine {:mvn/version "0.1.3"}}}
 ```
 
 Or to your Leiningen project file:
 
 ```clojure
-[cc.clojure/grenadine "0.1.2"]
+[cc.clojure/grenadine "0.1.3"]
 ```
 
 

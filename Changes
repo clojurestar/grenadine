@@ -1,3 +1,16 @@
+- version: 0.1.3
+  date:    Sun Aug  2 02:35:55 PM EDT 2026
+  changes:
+  - Align one-shot launcher examples
+  - Add a short expand option
+  - Publish releases through Homebrew
+  - Add a native CLI installer
+  - Clean generated release files
+  - Tighten standalone CLI options
+  - Redesign the Grenadine CLI API
+  - Merge pull request #1 from yogthos/fix/incomparable-version-warning-message
+  - Report the message when versions cannot be compared
+
 - version: 0.1.2
   date:    Sun Aug  2 09:52:33 EDT 2026
   changes:
