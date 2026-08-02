@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+top=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+temporary=$(mktemp -d)
+trap 'rm -rf -- "$temporary"' EXIT
+
+version=9.8.7
+release="$temporary/release"
+remote="$temporary/homebrew-grenadine.git"
+seed="$temporary/seed"
+tap="$temporary/tap"
+mkdir -p "$release"
+
+checksum_file="$release/grenadine-checksums.txt"
+printf '%s  %s\n' \
+  aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa \
+  "grenadine-$version-linux_amd64.tar.gz" \
+  bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb \
+  "grenadine-$version-linux_arm64.tar.gz" \
+  cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc \
+  "grenadine-$version-darwin_amd64.tar.gz" \
+  dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd \
+  "grenadine-$version-darwin_arm64.tar.gz" \
+  > "$checksum_file"
+
+git init --quiet --initial-branch=main "$seed"
+git -C "$seed" config user.name 'Homebrew Test'
+git -C "$seed" config user.email homebrew-test@example.com
+printf '%s\n' '# Grenadine Homebrew test tap' > "$seed/ReadMe.md"
+git -C "$seed" add ReadMe.md
+git -C "$seed" commit --quiet -m Initial
+git clone --quiet --bare "$seed" "$remote"
+git -C "$seed" remote add origin "$remote"
+git -C "$seed" push --quiet --set-upstream origin main
+
+update_tap() {
+  GIT_AUTHOR_NAME='Homebrew Test' \
+  GIT_AUTHOR_EMAIL=homebrew-test@example.com \
+  GIT_COMMITTER_NAME='Homebrew Test' \
+  GIT_COMMITTER_EMAIL=homebrew-test@example.com \
+  GRENADINE_HOMEBREW_URL="$remote" \
+  GRENADINE_HOMEBREW_DIR="$tap" \
+  GRENADINE_HOMEBREW_PUSH=0 \
+  GRENADINE_RELEASE_URL="file://$release" \
+    make --no-print-directory -s -C "$top" \
+      release-homebrew VERSION="$version"
+}
+
+update_tap >/dev/null
+formula="$tap/Formula/grenadine.rb"
+versioned="$tap/Formula/grenadine@$version.rb"
+
+grep -Fq 'class Grenadine < Formula' "$formula"
+grep -Fq 'class GrenadineAT987 < Formula' "$versioned"
+grep -Fq "grenadine-$version-linux_amd64.tar.gz" "$formula"
+grep -Fq 'sha256 "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"' \
+  "$formula"
+grep -Fq "grenadine-$version-darwin_arm64.tar.gz" "$formula"
+grep -Fq 'sha256 "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"' \
+  "$formula"
+grep -Fq 'bin.install "grenadine"' "$formula"
+grep -Fq 'brew install clojurestar/grenadine/grenadine' "$tap/ReadMe.md"
+grep -Fq "brew install clojurestar/grenadine/grenadine@$version" \
+  "$tap/ReadMe.md"
+
+if command -v ruby >/dev/null; then
+  ruby -c "$formula" >/dev/null
+  ruby -c "$versioned" >/dev/null
+fi
+
+head_before=$(git -C "$tap" rev-parse HEAD)
+update_tap >/dev/null
+[[ $(git -C "$tap" rev-parse HEAD) == "$head_before" ]]
+[[ -z $(git -C "$tap" status --short) ]]
+
+echo 'Homebrew release checks passed'

@@ -51,6 +51,12 @@ Install the latest release on Bash or Zsh:
 source <(curl -sL clojurestar.github.io/grenadine/install)
 ```
 
+Or install it with Homebrew on Linux or macOS:
+
+```sh
+brew install clojurestar/grenadine/grenadine
+```
+
 Use an installed `grenadine` binary like this:
 
 ```sh

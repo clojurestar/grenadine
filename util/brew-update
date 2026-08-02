@@ -1,0 +1,153 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+version=${1:?usage: brew-update VERSION}
+version=${version#v}
+[[ $version =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
+  echo "brew-update: VERSION must have the form X.Y.Z" >&2
+  exit 1
+}
+
+top=$(git rev-parse --show-toplevel)
+tap_url=${GRENADINE_HOMEBREW_URL:-https://github.com/clojurestar/homebrew-grenadine.git}
+tap_dir=${GRENADINE_HOMEBREW_DIR:-$top/.cache/homebrew-grenadine}
+release_url=${GRENADINE_RELEASE_URL:-https://github.com/clojurestar/grenadine/releases/download/v$version}
+checksums=$(mktemp)
+formula_tmp=
+readme_tmp=
+trap 'rm -f "$checksums" "$formula_tmp" "$readme_tmp"' EXIT
+
+curl -fsSL "$release_url/grenadine-checksums.txt" -o "$checksums"
+
+checksum_for() {
+  local archive=$1 checksum
+  checksum=$(
+    awk -v archive="$archive" '
+      {
+        name = $2
+        sub(/^\*/, "", name)
+        if (name == archive) { print $1; exit }
+      }
+    ' "$checksums"
+  )
+  [[ $checksum =~ ^[0-9a-fA-F]{64}$ ]] || {
+    echo "brew-update: no SHA-256 checksum for $archive" >&2
+    exit 1
+  }
+  printf '%s\n' "$checksum"
+}
+
+linux_amd64="grenadine-$version-linux_amd64.tar.gz"
+linux_arm64="grenadine-$version-linux_arm64.tar.gz"
+darwin_amd64="grenadine-$version-darwin_amd64.tar.gz"
+darwin_arm64="grenadine-$version-darwin_arm64.tar.gz"
+linux_amd64_sha=$(checksum_for "$linux_amd64")
+linux_arm64_sha=$(checksum_for "$linux_arm64")
+darwin_amd64_sha=$(checksum_for "$darwin_amd64")
+darwin_arm64_sha=$(checksum_for "$darwin_arm64")
+
+if [[ -d $tap_dir/.git ]]; then
+  [[ -z $(git -C "$tap_dir" status --short) ]] || {
+    echo "brew-update: tap checkout has uncommitted changes: $tap_dir" >&2
+    exit 1
+  }
+  if git -C "$tap_dir" rev-parse --verify HEAD >/dev/null 2>&1; then
+    git -C "$tap_dir" pull --ff-only
+  fi
+else
+  [[ ! -e $tap_dir ]] || {
+    echo "brew-update: tap path exists but is not a Git checkout: $tap_dir" >&2
+    exit 1
+  }
+  mkdir -p "${tap_dir%/*}"
+  echo "Cloning $tap_url"
+  git clone --quiet "$tap_url" "$tap_dir"
+fi
+
+mkdir -p "$tap_dir/Formula"
+
+write_formula() {
+  local output=$1 class=$2
+  formula_tmp=$(mktemp "$tap_dir/Formula/.grenadine.rb.XXXXXX")
+  cat > "$formula_tmp" <<FORMULA
+class $class < Formula
+  desc "Portable Maven dependency resolver for Clojure dialects"
+  homepage "https://clojurestar.github.io/grenadine/"
+  version "$version"
+  license "MIT"
+
+  on_linux do
+    if Hardware::CPU.arm?
+      url "$release_url/$linux_arm64"
+      sha256 "$linux_arm64_sha"
+    elsif Hardware::CPU.intel?
+      url "$release_url/$linux_amd64"
+      sha256 "$linux_amd64_sha"
+    else
+      odie "Grenadine is not available for this Linux architecture"
+    end
+  end
+
+  on_macos do
+    if Hardware::CPU.arm?
+      url "$release_url/$darwin_arm64"
+      sha256 "$darwin_arm64_sha"
+    elsif Hardware::CPU.intel?
+      url "$release_url/$darwin_amd64"
+      sha256 "$darwin_amd64_sha"
+    else
+      odie "Grenadine is not available for this macOS architecture"
+    end
+  end
+
+  def install
+    bin.install "grenadine"
+  end
+
+  test do
+    assert_match "grenadine v#{version}", shell_output("#{bin}/grenadine --version")
+  end
+end
+FORMULA
+  mv "$formula_tmp" "$output"
+  formula_tmp=
+}
+
+write_formula "$tap_dir/Formula/grenadine.rb" Grenadine
+version_class=${version//./}
+write_formula "$tap_dir/Formula/grenadine@$version.rb" \
+  "GrenadineAT$version_class"
+
+readme_tmp=$(mktemp "$tap_dir/.ReadMe.md.XXXXXX")
+cat > "$readme_tmp" <<README
+homebrew-grenadine
+==================
+
+[Homebrew](https://brew.sh/) formulas for Grenadine.
+
+
+## Install Grenadine with Homebrew
+
+Works on Linux and macOS, on Intel and ARM.
+
+\`\`\`sh
+brew install clojurestar/grenadine/grenadine
+brew install clojurestar/grenadine/grenadine@$version
+\`\`\`
+README
+mv "$readme_tmp" "$tap_dir/ReadMe.md"
+readme_tmp=
+
+git -C "$tap_dir" add -- Formula ReadMe.md
+if git -C "$tap_dir" diff --cached --quiet; then
+  echo "Homebrew tap is already up to date for $version"
+  exit 0
+fi
+
+git -C "$tap_dir" commit -m "Grenadine $version"
+if [[ ${GRENADINE_HOMEBREW_PUSH:-1} == 0 ]]; then
+  echo "Skipping Homebrew tap push"
+else
+  git -C "$tap_dir" push -u origin HEAD:main
+fi

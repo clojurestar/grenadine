@@ -19,6 +19,22 @@ namespaces. Start with [Getting started](getting-started.md) and the
 
 ## Install the native command
 
+### Homebrew
+
+On Linux and macOS, on Intel or ARM:
+
+```sh
+brew install clojurestar/grenadine/grenadine
+```
+
+To install a specific published version:
+
+```sh
+brew install clojurestar/grenadine/grenadine@0.1.2
+```
+
+### Bash and Zsh installer
+
 On Bash and Zsh, download and verify the current release and install it under
 `$HOME/.local/bin` with:
 

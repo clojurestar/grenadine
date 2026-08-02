@@ -36,6 +36,7 @@ SOURCE-STAGE-STAMP := $(SOURCE-STAGE)/.stamp
 STAGE-SOURCES := $(CURDIR)/util/stage-sources
 RELEASE := $(CURDIR)/util/release
 RELEASE-DIST := $(CURDIR)/util/release-dist
+BREW-UPDATE := $(CURDIR)/util/brew-update
 DIST := $(CURDIR)/dist
 RELEASE-BUILD := $(CURDIR)/.cache/release
 PREFIX ?= $(if $(filter 0,$(shell id -u)),/usr/local,$(HOME)/.local)
@@ -108,7 +109,8 @@ test-release: $(BB)
 	BB='$(BB)' test/release
 
 test-scripts: $(SHELLCHECK) $(PWSH)
-	$(SHELLCHECK) util/stage-sources util/release util/release-dist test/cli test/installer test/release www/docs/get www/docs/install
+	$(SHELLCHECK) util/brew-update util/stage-sources util/release util/release-dist test/cli test/homebrew test/installer test/release www/docs/get www/docs/install
+	test/homebrew
 	test/installer
 	$(PWSH) -NoProfile -Command '$$tokens = $$null; $$errors = $$null; [System.Management.Automation.Language.Parser]::ParseFile("www/docs/get.ps1", [ref] $$tokens, [ref] $$errors) > $$null; if ($$errors.Count) { $$errors | Out-String | Write-Error; exit 1 }'
 
@@ -133,6 +135,11 @@ release-dist: $(SOURCE-STAGE-STAMP) $(GLOAT)
 	  '$(VERSION)' '$(GLOAT)' '$(SOURCE-STAGE)' \
 	  '$(CURDIR)' '$(DIST)' '$(RELEASE-BUILD)'
 
+release-homebrew:
+	@$(if $(filter command line,$(origin VERSION)),,\
+	  $(error VERSION is required on the command line))
+	$Q '$(BREW-UPDATE)' '$(VERSION)'
+
 release: $(GH) $(BB)
 	@$(if $(filter command line,$(origin VERSION)),,\
 	  $(error VERSION is required on the command line))
@@ -144,4 +151,4 @@ release-mark-deployed:
 	$Q '$(RELEASE)' mark-deployed '$(VERSION)'
 
 MAKES-CLEAN += .cache/clojure .cache/jolt .cache/source-stage .cache/release .cpcache target bin dist www/site
-MAKES-REALCLEAN += www/venv
+MAKES-REALCLEAN += .cache/homebrew-grenadine www/venv

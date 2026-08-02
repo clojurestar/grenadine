@@ -381,6 +381,9 @@ publish() {
       --title "Grenadine $tag" --notes-file "$notes_file" \
       "$top"/dist/grenadine-*
   fi
+  if [[ ${RELEASE_SKIP_HOMEBREW:-0} == 0 ]]; then
+    make release-homebrew VERSION="$version"
+  fi
   make publish-www
   echo "Release $tag complete"
 }

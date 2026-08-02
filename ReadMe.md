@@ -74,6 +74,12 @@ dependency closures. `--expand` prints the selected graph without installing
 JARs. Use `-M` or `--mediator` to select `newest`, `nearest`, or `tools-deps`.
 The default is `tools-deps`; `--mediators` describes all three.
 
+On Linux and macOS, install with Homebrew:
+
+```sh
+brew install clojurestar/grenadine/grenadine
+```
+
 On Bash and Zsh, install the latest release under `$HOME/.local/bin` with:
 
 ```sh
@@ -145,6 +151,19 @@ make oracle
 
 `test-all` runs the same portable suite on all five runtimes. `oracle` compares
 Grenadine with JVM tools.deps and Maven `ComparableVersion`.
+
+`make release VERSION=X.Y.Z` publishes the Clojars artifact, native archives,
+website, and Homebrew formulas. To publish or retry only the Homebrew tap after
+the GitHub release assets exist:
+
+```sh
+make release-homebrew VERSION=X.Y.Z
+```
+
+The updater pushes to `clojurestar/homebrew-grenadine` by default. Set
+`GRENADINE_HOMEBREW_URL` to use another tap remote, or set
+`GRENADINE_HOMEBREW_PUSH=0` to prepare and inspect the tap checkout without
+pushing it.
 
 The Gloat-compiled command includes its Glojure effect host from this
 repository and builds against released Glojure. JVM Clojure and Babashka
