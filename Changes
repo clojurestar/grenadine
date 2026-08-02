@@ -1,3 +1,14 @@
+- version: 0.1.2
+  date:    Sun Aug  2 09:52:33 EDT 2026
+  changes:
+  - Fix release and Jolt test gates
+  - Bump all published version references
+  - Add portable dependency expander
+  - Add Maven repository management commands
+  - Accept deps files without dependencies
+  - Add full Grenadine website documentation
+  - Link README to Grenadine website
+
 - version: 0.1.1
   date:    Sat Aug  1 17:07:43 EDT 2026
   changes:

@@ -10,7 +10,7 @@ checksum, cache it in a temporary directory, and run the binary.
 Add the Clojars coordinate to `deps.edn`:
 
 ```clojure
-{:deps {cc.clojure/grenadine {:mvn/version "0.1.1"}}}
+{:deps {cc.clojure/grenadine {:mvn/version "0.1.2"}}}
 ```
 
 The library contains the portable core, JVM host, and runtime integration
