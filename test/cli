@@ -51,6 +51,25 @@ check_empty() {
   fi
 }
 
+check_exact() {
+  local description=$1 expected_status=$2 expected_output=$3
+  shift 3
+  local output status
+  set +e
+  output=$("$@" 2>&1)
+  status=$?
+  set -e
+  checks=$((checks + 1))
+  if [[ $status != "$expected_status" || $output != "$expected_output" ]]; then
+    echo "not ok $checks - $description" >&2
+    echo "  status: $status" >&2
+    echo "  output: $output" >&2
+    failures=$((failures + 1))
+  else
+    echo "ok $checks - $description"
+  fi
+}
+
 seed_repo() {
   local repository=$1
   local base=$repository/org/example/demo/1.0.0
@@ -112,7 +131,8 @@ check "top-level map validation" 1 'must contain an EDN map' \
   "$grenadine" "$deps_file"
 
 printf '{:paths ["src"]}\n' > "$deps_file"
-check "missing deps validation" 1 'does not contain :deps' \
+check_exact "missing deps is empty" 0 \
+  '=> Installed: 0  Already: 0  Total: 0' \
   "$grenadine" "$deps_file"
 
 printf '{:deps []}\n' > "$deps_file"

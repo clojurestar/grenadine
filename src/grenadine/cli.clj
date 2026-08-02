@@ -92,11 +92,12 @@
               (fail! (str "cannot parse " input ": " (fmt.Sprint error)))))]
       (when-not (map? config)
         (fail! (str input " must contain an EDN map")))
-      (when-not (contains? config :deps)
-        (fail! (str input " does not contain :deps")))
-      (when-not (map? (:deps config))
+      (when (and (contains? config :deps)
+                 (not (map? (:deps config))))
         (fail! (str input " :deps must be a map")))
-      config)))
+      (if (contains? config :deps)
+        config
+        (assoc config :deps {})))))
 
 (defn- print-installed!
   [{:keys [group artifact version]}]

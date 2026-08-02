@@ -6,8 +6,8 @@ Usage: grenadine [OPTIONS] DEPS-SOURCE
        grenadine --version
 ```
 
-`DEPS-SOURCE` is a local path or an HTTP/HTTPS URL containing an EDN map with
-a `:deps` map. GitHub `blob` URLs are requested as raw content automatically.
+`DEPS-SOURCE` is a local path or an HTTP/HTTPS URL containing a deps.edn-style
+EDN map. GitHub `blob` URLs are requested as raw content automatically.
 
 ## Options
 
@@ -31,9 +31,10 @@ values, and extra arguments exit with status 1.
  {org.clojure/data.csv {:mvn/version "1.1.0"}}}
 ```
 
-The CLI requires a top-level EDN map and a map-valued `:deps`. Version 0.1
-accepts Maven coordinates with `:mvn/version`; other deps.edn coordinate types
-are rejected.
+The CLI requires a top-level EDN map. When `:deps` is present, it must be a map.
+A valid file without `:deps` is treated as an empty dependency set and reports
+zero installed, already-present, and total artifacts. Version 0.1 accepts Maven
+coordinates with `:mvn/version`; other deps.edn coordinate types are rejected.
 
 Configured `:mvn/repos` entries are merged with the Central and Clojars
 defaults. Central and Clojars are tried first, followed by additional
