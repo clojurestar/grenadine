@@ -17,11 +17,13 @@ fake_bin="$temporary/bin"
 secrets="$temporary/publish-secrets.yaml"
 missing_token="$temporary/missing-token.yaml"
 
-mkdir -p "$repo/util" "$repo/www/docs" "$fake_bin"
+mkdir -p "$repo/util" "$repo/www/docs" "$repo/test" "$fake_bin"
 cp "$top/Changes" "$top/VERSION" "$top/project.clj" "$top/ReadMe.md" \
   "$repo/"
 cp "$top/www/docs/getting-started.md" "$top/www/docs/installation.md" \
   "$repo/www/docs/"
+printf 'exact=%s nearby=%s24\n' "$current" "$current" \
+  > "$repo/test/version-fixtures"
 cp "$release" "$repo/util/release"
 git init --quiet --initial-branch=main "$repo"
 git -C "$repo" config user.name 'Release Test'
@@ -70,10 +72,13 @@ expect_failure validation-stop run_release
   's/^(defproject cc\.clojure\/grenadine "\([^"]*\)".*/\1/p' \
   "$repo/project.clj") == "$version" ]]
 grep -q "^- version: $version\$" "$repo/Changes"
-if git -C "$repo" grep -qF "$current" -- . ':(exclude)Changes'; then
-  echo 'old version remains outside Changes' >&2
+if git -C "$repo" grep -qF "$current" -- \
+  ReadMe.md VERSION project.clj www; then
+  echo 'old published version remains' >&2
   exit 1
 fi
+grep -Fqx "exact=$current nearby=${current}24" \
+  "$repo/test/version-fixtures"
 grep -Fq "cc.clojure/grenadine {:mvn/version \"$version\"}" \
   "$repo/ReadMe.md"
 grep -Fq "cc.clojure/grenadine \"$version\"" "$repo/ReadMe.md"

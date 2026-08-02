@@ -1,0 +1,24 @@
+(doseq [file ["src/grenadine/source.cljc"
+              "src/grenadine/lock.cljc"
+              "src/grenadine/version.cljc"
+              "src/grenadine/expander.cljc"
+              "src/grenadine/graph.cljc"
+              "src/grenadine/xml.cljc"
+              "src/grenadine/pom.cljc"
+              "src/grenadine/repo.cljc"
+              "src/grenadine/core.cljc"
+              "src/grenadine/runtime.cljc"
+              "test/grenadine/test_support.cljc"
+              "test/grenadine/xml_test.cljc"
+              "test/grenadine/pom_test.cljc"
+              "test/grenadine/version_test.cljc"
+              "test/grenadine/expander_test.cljc"
+              "test/grenadine/graph_test.cljc"
+              "test/grenadine/lock_test.cljc"
+              "test/grenadine/repo_test.cljc"
+              "test/grenadine/source_test.cljc"
+              "test/grenadine/runtime_test.cljc"
+              "test/grenadine/test_runner.cljc"]]
+  (load-file file))
+
+(grenadine.test-runner/-main)

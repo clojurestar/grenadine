@@ -30,7 +30,9 @@ project_version() {
 }
 
 version_reference_files() {
-  git grep -IlF "$1" -- . ':(exclude)Changes' || true
+  local pattern=${1//./\\.}
+  git grep -IlE "(^|[^0-9.])$pattern([^0-9.]|$)" -- . \
+    ':(exclude)Changes' ':(exclude)test/**' || true
 }
 
 release_files() {
@@ -41,14 +43,12 @@ release_files() {
 }
 
 bump_version_references() {
-  local current=$1 file temporary pattern
-  pattern=${current//./\\.}
+  local current=$1 file
   while IFS= read -r file; do
     [[ -n $file ]] || continue
-    temporary=$(mktemp)
-    cp -p "$file" "$temporary"
-    sed "s/$pattern/$version/g" "$file" > "$temporary"
-    mv "$temporary" "$file"
+    OLD_VERSION="$current" NEW_VERSION="$version" perl -pi -e \
+      's/(?<![0-9.])\Q$ENV{OLD_VERSION}\E(?![0-9.])/$ENV{NEW_VERSION}/g' \
+      "$file"
   done < <(version_reference_files "$current")
 }
 
@@ -114,7 +114,7 @@ prepare() {
   mv "$temporary" "$changes_file"
   bump_version_references "$current"
 
-  if git grep -qF "$current" -- . ':(exclude)Changes'; then
+  if [[ -n $(version_reference_files "$current") ]]; then
     echo "release: failed to replace every current-version reference" >&2
     exit 1
   fi

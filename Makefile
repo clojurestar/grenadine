@@ -13,6 +13,7 @@ JOLT_CACHE_DIR := $(CURDIR)/.cache/jolt
 JOLT_GITLIBS := $(CURDIR)/.cache/jolt/gitlibs
 JOLT_LOCAL_REPO := $(CURDIR)/.cache/m2
 export JOLT_CACHE_DIR JOLT_GITLIBS JOLT_LOCAL_REPO
+JOLT_SOURCE_DIR ?= $(abspath $(CURDIR)/../jolt)
 
 include $M/init.mk
 include $M/clojure.mk
@@ -81,9 +82,15 @@ test-glj: $(GLJ)
 	GLJ_CLASSPATH=src:test $(GLJ) -e \
 	  "(require 'grenadine.test-runner) (grenadine.test-runner/-main)"
 
+ifneq (,$(wildcard $(JOLT_SOURCE_DIR)/Makefile))
+test-jolt:
+	$(MAKE) -C '$(JOLT_SOURCE_DIR)' testbin
+	JOLT_PWD=. '$(JOLT_SOURCE_DIR)/target/release/jolt' \
+	  run test/jolt_runner.clj
+else
 test-jolt: $(JOLT)
-	JOLT_PWD=. $(JOLT) -Sdeps '{:paths ["src" "test"]}' \
-	  run -m grenadine.test-runner
+	JOLT_PWD=. $(JOLT) run test/jolt_runner.clj
+endif
 
 test-lg: $(LG)
 	LG_SOURCE_PATHS=src:test $(LG) -e \
