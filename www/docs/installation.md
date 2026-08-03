@@ -10,7 +10,7 @@ SHA-256 checksum before using the binary.
 Add the Clojars coordinate to `deps.edn`:
 
 ```clojure
-{:deps {cc.clojure/grenadine {:mvn/version "0.1.3"}}}
+{:deps {cc.clojure/grenadine {:mvn/version "0.1.4"}}}
 ```
 
 The library contains the portable core, JVM host, and runtime integration
@@ -30,7 +30,7 @@ brew install clojurestar/grenadine/grenadine
 To install a specific published version:
 
 ```sh
-brew install clojurestar/grenadine/grenadine@0.1.3
+brew install clojurestar/grenadine/grenadine@0.1.4
 ```
 
 ### Bash and Zsh installer

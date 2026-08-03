@@ -1,3 +1,10 @@
+- version: 0.1.4
+  date:    Mon Aug  3 02:14:56 PM EDT 2026
+  changes:
+  - Handle Unicode in Maven XML
+  - Add a portable dialect dependency facade
+  - Fix dependency installation example
+
 - version: 0.1.3
   date:    Sun Aug  2 02:35:55 PM EDT 2026
   changes:
