@@ -60,6 +60,19 @@
           "<tag>&amp; is not decoded"
           "]]></description></project>")))))
 
+(deftest handles-unicode-before-and-inside-elements
+  (is
+   (=
+    {:tag :project
+     :attrs {}
+     :content
+     [{:tag :modelVersion :attrs {} :content ["4.0.0"]}
+      {:tag :name :attrs {} :content ["Crème brûlée"]}]}
+    (xml/parse
+     (str "<!-- Copyright © OW2 -->"
+          "<project><modelVersion>4.0.0</modelVersion>"
+          "<name>Crème brûlée</name></project>")))))
+
 (deftest rejects-unsafe-and-malformed-input
   (testing "external declarations"
     (is (throws? (xml/parse "<!DOCTYPE project><project/>"))))
