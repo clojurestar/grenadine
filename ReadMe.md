@@ -29,6 +29,26 @@ Or to your Leiningen project file:
 ```
 
 
+## Portable dynamic dependencies
+
+Grenadine defines the ClojureStar dependency facade for code that should run
+unchanged across Clojure dialects:
+
+```clojure
+(require '[clojurestar.deps :as deps])
+
+(deps/add-deps
+ '{:deps
+   {dev.weavejester/medley {:mvn/version "1.10.0"}}})
+
+(require '[medley.core :as medley])
+```
+
+`clojurestar.deps/add-deps` always returns `nil`. Use `babashka.deps`,
+`glojure.deps`, `jolt.deps`, `let-go.deps`, or `grenadine.jvm` when code needs
+backend-specific options, operations, or result data.
+
+
 ## Command line
 
 The native `grenadine` command installs the Maven dependencies from a local or
@@ -168,10 +188,9 @@ The updater pushes to `clojurestar/homebrew-grenadine` by default. Set
 pushing it.
 
 The Gloat-compiled command includes its Glojure effect host from this
-repository and builds against released Glojure. JVM Clojure and Babashka
-retain their existing hosts. Jolt and let-go already run the complete pure
-core and have dependency facades; their native effect hosts still need the
-remaining runtime primitives described in the plan.
+repository and builds against released Glojure. JVM Clojure, Babashka,
+Glojure, Jolt, and let-go each expose a dynamic dependency backend; the
+`clojurestar.deps` namespace is the intentionally small common API over them.
 
 
 ## Copyright and License

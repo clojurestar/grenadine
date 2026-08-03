@@ -18,6 +18,7 @@
               "test/grenadine/repo_test.cljc"
               "test/grenadine/source_test.cljc"
               "test/grenadine/runtime_test.cljc"
+              "test/grenadine/clojurestar_deps_test.cljc"
               "test/grenadine/test_runner.cljc"]]
   (load-file file))
 

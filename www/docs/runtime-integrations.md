@@ -6,6 +6,20 @@ provided by each implementation. They are add-only: a top-level library that
 is already loaded is retained, and a different requested coordinate produces
 a `:loaded-lib-not-upgraded` warning.
 
+## Portable API
+
+Dialect-agnostic code should use `clojurestar.deps`:
+
+```clojure
+(require '[clojurestar.deps :as deps])
+
+(deps/add-deps
+ '{:deps {org.clojure/data.csv {:mvn/version "1.1.0"}}})
+```
+
+The portable API guarantees only the one-argument `add-deps` operation and
+always returns `nil`. The dialect namespaces below retain their richer APIs.
+
 Every facade provides this shape:
 
 ```clojure
@@ -30,54 +44,45 @@ source roots for non-JVM runtimes.
 Namespace: `glojure.deps`
 
 Glojure's facade appends extracted roots through
-`clojure.core/add-load-path`. The caller must provide a Glojure-native
-Grenadine `:host` in the options. If `add-load-path` is unavailable, the
+`clojure.core/add-load-path` and uses Glojure's native Grenadine host by
+default. If `add-load-path` is unavailable, the
 operation fails with `:grenadine.runtime/missing-load-path-hook`.
 
 ```clojure
 (require '[glojure.deps :as deps])
 
 (deps/add-lib 'org.clojure/data.csv
-              {:mvn/version "1.1.0"}
-              {:host my-glojure-host})
+              {:mvn/version "1.1.0"})
 ```
-
-Status: the facade and load-path integration are present; embedding code must
-supply the native host effects.
 
 ## Jolt
 
 Namespace: `jolt.deps`
 
-Jolt's facade preserves existing source roots and appends the extracted roots
-through `jolt.host/source-roots` and `jolt.host/set-source-roots!`. A
-Jolt-native Grenadine host must be supplied.
+Jolt's native dependency implementation preserves existing source roots and
+appends newly resolved roots. It supports Maven, Git, and local coordinates.
 
 ```clojure
 (require '[jolt.deps :as deps])
 
-(deps/sync-deps "deps.edn" {:host my-jolt-host})
+(deps/add-deps
+ '{:deps {org.clojure/data.csv {:mvn/version "1.1.0"}}})
 ```
-
-Status: the facade and source-root mutation are present; the Jolt integration
-must provide its native repository host.
 
 ## let-go
 
 Namespace: `let-go.deps`
 
-let-go exposes load-path mutation to Go embedders through `SetLoadPath`, but
-does not currently expose it as a language function. Supply both the native
-Grenadine host and an `:add-roots!` callback:
+let-go supplies native repository effects and appends extracted roots to its
+active namespace resolver:
 
 ```clojure
 (require '[let-go.deps :as deps])
 
 (deps/add-deps
- '{:deps {org.clojure/data.csv {:mvn/version "1.1.0"}}}
- {:host my-let-go-host
-  :add-roots! my-embedding-load-path-hook})
+ '{:deps {org.clojure/data.csv {:mvn/version "1.1.0"}}})
 ```
 
-Status: dependency and add-only facade behavior are present; embedding code
-must bridge source roots into let-go's load path.
+Dynamic installation targets native interpreter and CLI builds. Browser/WASM
+and runtime-only AOT executables do not provide this mutable filesystem and
+source-loader contract.

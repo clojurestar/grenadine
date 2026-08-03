@@ -1,9 +1,10 @@
 (ns glojure.deps
   "Glojure dependency facade backed by Grenadine.
 
-  Pass a Glojure-native Grenadine `:host` in opts. Installed JARs are safely
-  extracted and their source roots are appended with `clojure.core/add-load-path`."
-  (:require [grenadine.runtime :as runtime]))
+  Installed JARs are safely extracted and their source roots are appended with
+  `clojure.core/add-load-path`."
+  (:require [grenadine.runtime :as runtime]
+            [glojure.deps.host :as host]))
 
 (defonce ^:private basis (atom {}))
 
@@ -19,7 +20,10 @@
 
 (defn add-libs
   ([libs] (add-libs libs nil))
-  ([libs opts] (runtime/add-libs! basis add-roots! libs opts)))
+  ([libs opts]
+   (let [opts (or opts {})]
+     (runtime/add-libs! basis add-roots! libs
+                        (assoc opts :host (or (:host opts) (host/host)))))))
 
 (defn add-lib
   ([lib coordinate] (add-lib lib coordinate nil))
@@ -27,7 +31,14 @@
 
 (defn add-deps
   ([deps-map] (add-deps deps-map nil))
-  ([deps-map opts] (add-libs (:deps deps-map) opts)))
+  ([deps-map opts]
+   (add-libs (or (:deps deps-map) {})
+             (cond-> (or opts {})
+               (:mvn/local-repo deps-map)
+               (assoc :local-repo (:mvn/local-repo deps-map))
+
+               (:mvn/repos deps-map)
+               (assoc :repos (:mvn/repos deps-map))))))
 
 (defn sync-deps
   ([] (sync-deps "deps.edn" nil))

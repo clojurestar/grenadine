@@ -1,27 +1,24 @@
 (ns let-go.deps
   "let-go dependency facade backed by Grenadine.
 
-  let-go currently exposes load-path mutation to Go embedders through
-  `SetLoadPath`, but not as a language function. Until that hook is exposed,
-  pass `:add-roots!` in opts."
-  (:require [grenadine.runtime :as runtime]))
+  Installed JARs are safely extracted and their source roots are appended to
+  the active namespace resolver."
+  (:require [grenadine.host.let-go :as host]
+            [grenadine.runtime :as runtime]
+            [let-go.deps.host :as native]))
 
 (defonce ^:private basis (atom {}))
 
 (defn current-basis [] (runtime/current-basis basis))
 
-(defn- missing-hook
-  [_roots]
-  (throw
-   (ex-info
-    "let-go needs :add-roots! (typically backed by the embedding SetLoadPath)"
-    {:type :grenadine.runtime/missing-load-path-hook})))
+(defn- add-roots! [roots] (native/add-source-roots! roots))
 
 (defn add-libs
   ([libs] (add-libs libs nil))
   ([libs opts]
-   (runtime/add-libs! basis (or (:add-roots! opts) missing-hook)
-                      libs (dissoc opts :add-roots!))))
+   (let [opts (or opts {})]
+     (runtime/add-libs! basis add-roots! libs
+                        (assoc opts :host (or (:host opts) (host/host)))))))
 
 (defn add-lib
   ([lib coordinate] (add-lib lib coordinate nil))
@@ -29,7 +26,14 @@
 
 (defn add-deps
   ([deps-map] (add-deps deps-map nil))
-  ([deps-map opts] (add-libs (:deps deps-map) opts)))
+  ([deps-map opts]
+   (add-libs (or (:deps deps-map) {})
+             (cond-> (or opts {})
+               (:mvn/local-repo deps-map)
+               (assoc :local-repo (:mvn/local-repo deps-map))
+
+               (:mvn/repos deps-map)
+               (assoc :repos (:mvn/repos deps-map))))))
 
 (defn sync-deps
   ([] (sync-deps "deps.edn" nil))
