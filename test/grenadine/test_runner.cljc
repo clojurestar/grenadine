@@ -1,6 +1,7 @@
 (ns grenadine.test-runner
   (:require [clojure.test :as test]
             [grenadine.clojurestar-deps-test]
+            [grenadine.coordinate-test]
             [grenadine.expander-test]
             [grenadine.graph-test]
             [grenadine.lock-test]
@@ -25,6 +26,7 @@
      (let [{:keys [fail error]}
            (test/run-tests 'grenadine.xml-test
                            'grenadine.clojurestar-deps-test
+                           'grenadine.coordinate-test
                            'grenadine.pom-test
                            'grenadine.version-test
                            'grenadine.expander-test

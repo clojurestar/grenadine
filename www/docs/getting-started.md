@@ -2,8 +2,8 @@
 
 Grenadine can be used as a pure Clojure library or as a standalone native
 command. The library is intended for Clojure dialects and tools that need
-Maven resolution. The command is convenient when you only need to populate a
-local Maven repository.
+Maven, Git, and local resolution. The command prepares dependencies without
+starting a JVM.
 
 ## Add the library
 

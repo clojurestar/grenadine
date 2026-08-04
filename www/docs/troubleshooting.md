@@ -1,10 +1,11 @@
 # Troubleshooting
 
-## A dependency requires `:mvn/version`
+## A coordinate is rejected
 
-Grenadine 0.1 resolves Maven coordinates only. Replace Git, local, or other
-coordinate types with a Maven version, or let another deps.edn implementation
-handle those entries.
+Grenadine accepts Maven, Git, and local coordinates. A coordinate must identify
+exactly one type, and Git or local directories must contain `deps.edn` or
+`pom.xml`. Use `:deps/manifest :deps` or `:deps/manifest :pom` to select one
+explicitly.
 
 ## A POM or artifact cannot be downloaded
 

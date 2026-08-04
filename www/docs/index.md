@@ -1,6 +1,6 @@
 ---
 title: Grenadine
-description: Pure Clojure Maven dependency resolution across Clojure dialects
+description: Pure Clojure dependency resolution across Clojure dialects
 hide:
   - navigation
   - toc
@@ -11,14 +11,14 @@ hide:
 > Pomegranate, with the JVM pressed out.
 
 Grenadine is first a **pure Clojure library** for resolving and installing
-Maven dependencies. Its resolver core runs unchanged on JVM Clojure,
+Maven, Git, and local dependencies. Its resolver core runs unchanged on JVM Clojure,
 [Babashka](https://babashka.org/),
 [Glojure](https://github.com/glojurelang/glojure),
 [Jolt](https://github.com/jolt-lang/jolt), and
 [let-go](https://github.com/nooga/let-go).
 
-It gives Clojure dialects a shared way to support `deps.edn`-style Maven
-dependencies without reimplementing Maven resolution for every runtime.
+It gives Clojure dialects a shared way to support `deps.edn`-style
+dependencies without reimplementing resolution for every runtime.
 
 ## One resolver, many dialects
 

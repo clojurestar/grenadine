@@ -19,6 +19,9 @@ Dialect-agnostic code should use `clojurestar.deps`:
 
 The portable API guarantees only the one-argument `add-deps` operation and
 always returns `nil`. The dialect namespaces below retain their richer APIs.
+The namespace is supplied by the Grenadine library itself; on Babashka it calls
+the Java-free `grenadine.bb` backend, not the JVM-backed built-in
+`babashka.deps` resolver.
 
 Every facade provides this shape:
 
@@ -37,7 +40,8 @@ Every facade provides this shape:
 
 `add-deps` uses the map's `:deps` value. `sync-deps` reads `deps.edn` by
 default. All facades default to `:tools-deps` mediation and request extracted
-source roots for non-JVM runtimes.
+source roots for non-JVM runtimes. `current-basis` returns accumulated
+tools.deps-shaped `:libs`, `:classpath`, and `:classpath-roots` data.
 
 ## Glojure
 

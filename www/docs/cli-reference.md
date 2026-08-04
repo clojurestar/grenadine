@@ -21,6 +21,7 @@ operands without an explicit operation are rejected.
 | Short | Long | Behavior |
 | --- | --- | --- |
 | `-R DIR` | `--repository DIR` | Use this local Maven repository. |
+| `-G DIR` | `--gitlibs DIR` | Use this tools.gitlibs-compatible Git cache. |
 | `-M MODE` | `--mediator MODE` | Use `newest`, `nearest`, or `tools-deps`. |
 | | `--list` | List the repository or report an expanded graph's local status. |
 | | `--add` | Expand and install all selected dependencies. |
@@ -53,6 +54,8 @@ the same library.
 
 Remote repository maps are also merged in operand order. The last source-level
 `:mvn/local-repo` wins, while `-R/--repository` overrides every source.
+The last top-level `:gitlibs/dir` wins, while `-G/--gitlibs` overrides every
+source.
 
 ## List
 
@@ -66,7 +69,7 @@ grenadine -R my-m2 --list
 ```
 
 With items, `--list` composes and expands them like `--expand`, then checks
-whether each selected JAR exists locally:
+whether each selected Maven JAR, Git checkout, or local path exists:
 
 ```sh
 grenadine -M nearest --list deps.edn org.example/library 2.0.0
@@ -90,9 +93,10 @@ grenadine -M newest --expand deps.edn org.example/library 2.0.0
 ```
 
 Both operations combine all inputs and mediate once. `--add` installs the
-selected JARs and prints streamed installation lines plus its summary.
-`--expand` prints sorted `group/artifact VERSION` coordinates and installs no
-JARs. Both may cache required POM metadata.
+selected Maven artifacts and Git checkouts, validates local paths, and prints
+streamed installation lines plus its summary. `--expand` prints sorted
+coordinates and installs no Maven JARs. Both may cache POM metadata and procure
+Git checkouts required to read manifests.
 
 ## Delete exact coordinates
 
@@ -161,8 +165,11 @@ and `--mediators`. The `--mediators` operation does not accept other options.
 ```
 
 The source must contain an EDN map. Missing `:deps` means an empty dependency
-set. Version 0.1 accepts Maven coordinates with `:mvn/version`; unsupported
-coordinate types fail before mutation.
+set. Coordinates may use `:mvn/version`, `:git/url` with `:git/sha`, or
+`:local/root`. Git and local directory coordinates require `deps.edn` or
+`pom.xml`; `:deps/root` and `:deps/manifest` refine where and how that manifest
+is read. Direct Git/local map syntax is intentionally not parsed as CLI items;
+put those coordinates in a local or remote deps source.
 
 ## Removed spellings
 

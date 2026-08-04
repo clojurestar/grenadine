@@ -1,5 +1,6 @@
 (ns grenadine.host.jvm
   "JVM host implementation for Grenadine repository operations."
+  (:require [clojure.edn :as edn])
   (:import [java.io ByteArrayOutputStream File FileInputStream]
            [java.net HttpURLConnection URL]
            [java.nio.charset StandardCharsets]
@@ -73,6 +74,32 @@
                           {:path (str child)}))))))
   nil)
 
+(defn- run-process
+  [{:keys [args dir env]}]
+  (let [builder (ProcessBuilder. ^java.util.List (mapv str args))]
+    (when dir (.directory builder (File. dir)))
+    (when env
+      (let [environment (.environment builder)]
+        (doseq [[key value] env]
+          (.put environment (str key) (str value)))))
+    (let [process (.start builder)
+          read-background
+          (fn [stream]
+            (let [result (promise)
+                  thread
+                  (Thread.
+                   (fn []
+                     (deliver result
+                              (String. ^bytes (read-all stream)
+                                       StandardCharsets/UTF_8))))]
+              (.setDaemon thread true)
+              (.start thread)
+              result))
+          out (read-background (.getInputStream process))
+          err (read-background (.getErrorStream process))
+          exit (.waitFor process)]
+      {:exit exit :out @out :err @err})))
+
 (defn- extract-jar!
   [jar destination]
   (let [marker (str destination "/.grenadine-complete")]
@@ -136,6 +163,19 @@
    :digest digest
    :byte-count (fn [^bytes value] (alength value))
    :exists? #(Files/exists (path %) (make-array java.nio.file.LinkOption 0))
+   :directory? #(.isDirectory (File. %))
+   :regular-file? #(.isFile (File. %))
+   :find-files
+   (fn [root predicate]
+     (->> (file-seq (File. root))
+          (filter #(.isFile ^File %))
+          (map #(.getCanonicalPath ^File %))
+          (filter predicate)
+          vec))
+   :canonical-path #(.getCanonicalPath (File. %))
+   :absolute-path #(.getAbsolutePath (File. %))
+   :run-process run-process
+   :read-edn #(edn/read-string %)
    :mkdirs!
    (fn [target]
      (Files/createDirectories
@@ -145,6 +185,7 @@
    :atomic-move! atomic-move!
    :delete!
    (fn [target] (Files/deleteIfExists (path target)) nil)
+   :delete-tree! delete-tree!
    :extract-jar! extract-jar!
    :home-dir #(System/getProperty "user.home")
    :getenv #(System/getenv %)})

@@ -1,17 +1,16 @@
 Grenadine
 =========
 
-Grenadine is a portable Maven dependency resolver library in pure Clojure:
+Grenadine is a portable dependency resolver library in pure Clojure:
 “pomegranate, with the JVM pressed out.”
 
 See the [Grenadine website](https://clojurestar.github.io/grenadine/) for the
 published documentation and install helpers.
 
 The resolver core runs unchanged on JVM Clojure, Babashka, Glojure, Jolt, and
-let-go. It parses and builds effective POMs, walks dependency graphs, supports
-newest / Maven-nearest / tools.deps mediation, emits deterministic locks,
-fetches artifacts, verifies checksums, and prepares extracted source roots for
-non-JVM runtimes.
+let-go. It resolves Maven, Git, and local coordinates, builds tools.deps-shaped
+bases, supports newest / Maven-nearest / tools.deps mediation, emits
+deterministic locks, and prepares source roots for non-JVM runtimes.
 
 
 ## Installation
@@ -51,8 +50,8 @@ backend-specific options, operations, or result data.
 
 ## Command line
 
-The native `grenadine` command installs the Maven dependencies from a local or
-remote `deps.edn` source without Java:
+The native `grenadine` command resolves and installs dependencies from a local
+or remote `deps.edn` source without Java:
 
 ```sh
 grenadine --add deps.edn
@@ -86,6 +85,11 @@ non-error output. The repository used by `-R` or `--repository` takes
 precedence over `:mvn/local-repo` in the deps source,
 `GRENADINE_LOCAL_REPOSITORY`, and the default
 `$HOME/.m2/repository`, in that order.
+
+Deps sources may contain Maven, Git, and local coordinates. Git coordinates
+use a tools.gitlibs-compatible cache selected by `-G/--gitlibs`, top-level
+`:gitlibs/dir`, `GRENADINE_GITLIBS`, `GITLIBS`, or `$HOME/.gitlibs`, in that
+order. Git is only required when a Git coordinate is encountered.
 
 `--add`, `--list`, `--delete`, `--remove`, and `--expand` accept mixed lists of
 `group/artifact [version]` requests and local or remote deps sources. `--delete`
@@ -172,7 +176,9 @@ make oracle
 ```
 
 `test-all` runs the same portable suite on all five runtimes. `oracle` compares
-Grenadine with JVM tools.deps and Maven `ComparableVersion`.
+Grenadine bases with JVM tools.deps and version ordering with Maven
+`ComparableVersion`. Its deterministic generated cases are configured with
+`GRENADINE_ORACLE_SEED` and `GRENADINE_ORACLE_CASES`.
 
 `make release VERSION=X.Y.Z` publishes the Clojars artifact, native archives,
 website, and Homebrew formulas. To publish or retry only the Homebrew tap after

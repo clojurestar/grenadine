@@ -1,7 +1,9 @@
 (ns grenadine.cli
   (:require [clojure.string :as str]
             [grenadine.build-info :as build-info]
+            [grenadine.coordinate :as coordinate]
             [grenadine.core :as grenadine]
+            [grenadine.gitlibs :as gitlibs]
             [grenadine.host.glojure :as glojure-host]
             [grenadine.lock :as lock]
             [grenadine.repo :as repo]
@@ -21,6 +23,7 @@
    "ITEM is NAME [VERSION] or a local/remote DEPS-SOURCE.\n\n"
    "Options:\n"
    "  -R, --repository DIR  Use this Maven repository\n"
+   "  -G, --gitlibs DIR     Use this Git library cache\n"
    "  -M, --mediator MODE   Use newest, nearest, or tools-deps\n"
    "      --list            List the repository or an expanded graph\n"
    "      --add             Install an expanded dependency graph\n"
@@ -92,6 +95,17 @@
             (fail! "--repository requires a directory"))
           (recur (next remaining) (assoc options :repository repository)))
 
+        (contains? #{"-G" "--gitlibs"} argument)
+        (if-let [directory (second remaining)]
+          (recur (drop 2 remaining) (assoc options :gitlibs directory))
+          (fail! (str argument " requires a directory")))
+
+        (.startsWith argument "--gitlibs=")
+        (let [directory (subs argument (count "--gitlibs="))]
+          (when (empty? directory)
+            (fail! "--gitlibs requires a directory"))
+          (recur (next remaining) (assoc options :gitlibs directory)))
+
         (.startsWith argument "-")
         (fail! (str "unknown option: " argument))
 
@@ -153,6 +167,14 @@
       (when (and (some nil? versions) (> (count versions) 1))
         (fail! (str "cannot combine all-version and version deletions for "
                     name)))))
+  requests)
+
+(defn- validate-maven-removal! [requests]
+  (doseq [{:keys [name coordinate]} requests]
+    (when (and coordinate
+               (not= :mvn (coordinate/coordinate-type coordinate)))
+      (fail! (str "--delete and --remove support only Maven coordinates: "
+                  name))))
   requests)
 
 (defn- read-directory [directory]
@@ -269,15 +291,32 @@
                (conj items {:kind :source :source value})))
       items)))
 
+(defn- source-base-dir [input]
+  (if (source/remote? input) "." (path:filepath.Dir input)))
+
+(defn- input-coordinate
+  [coordinate input]
+  (if-let [root (:local/root coordinate)]
+    (do
+      (when (and (source/remote? input)
+                 (not (path:filepath.IsAbs root)))
+        (fail! (str input " contains a relative :local/root")))
+      (assoc coordinate :local/root
+             (if (path:filepath.IsAbs root)
+               root
+               (path:filepath.Join (source-base-dir input) root))))
+    coordinate))
+
 (defn- dependency-request
   [lib coordinate input]
   (let [request (library-coordinate (str lib))]
-    (when-not (and (map? coordinate) (seq (:mvn/version coordinate)))
-      (fail! (str input " dependency " lib " requires :mvn/version")))
+    (when-not (map? coordinate)
+      (fail! (str input " dependency " lib " must use a coordinate map")))
+    (let [coordinate (input-coordinate coordinate input)]
     (assoc request
            :version (:mvn/version coordinate)
            :coordinate coordinate
-           :input input)))
+           :input input))))
 
 (defn- input-bundle
   [operands host]
@@ -295,8 +334,11 @@
                      (update :requests into requests)
                      (update :mvn-repos merge (:mvn/repos config)))
            (contains? config :mvn/local-repo)
-           (assoc :local-repo (:mvn/local-repo config))))))
-   {:requests [] :mvn-repos {} :local-repo nil}
+           (assoc :local-repo (:mvn/local-repo config))
+
+           (contains? config :gitlibs/dir)
+           (assoc :gitlibs-dir (:gitlibs/dir config))))))
+   {:requests [] :mvn-repos {} :local-repo nil :gitlibs-dir nil}
    (parse-items operands host)))
 
 (defn- bundle-repos
@@ -334,24 +376,30 @@
   {:host host
    :repos (bundle-repos bundle)
    :local-repo (or (:repository parsed) (:local-repo bundle))
+   :gitlibs-dir (or (:gitlibs parsed) (:gitlibs-dir bundle))
    :mediation (:mediation parsed)})
 
+(declare coordinate-line)
+
 (defn- print-installed!
-  [{:keys [group artifact version]}]
-  (fmt.Fprintln os.Stdout
-                (str "Installed " group "/" artifact " " version)))
+  [{:keys [group artifact version lib coordinate]}]
+  (fmt.Fprintln
+   os.Stdout
+   (if lib
+     (str "Installed " (coordinate-line lib coordinate))
+     (str "Installed " group "/" artifact " " version))))
 
 (defn- print-summary!
   [result]
-  (let [installed (count (:fetched result))
-        already (count (:cached result))]
+  (let [installed (count (or (:installed-libs result) (:fetched result)))
+        already (count (or (:already-libs result) (:cached result)))]
     (fmt.Fprintln os.Stdout
                   (str "=> Installed: " installed
                        "  Already: " already
                        "  Total: " (+ installed already)))))
 
 (defn- install-deps!
-  [deps {:keys [host repos local-repo quiet mediation]}]
+  [deps {:keys [host repos local-repo gitlibs-dir quiet mediation]}]
   (let [result
         (grenadine/install!
          deps
@@ -359,7 +407,9 @@
                   :repos repos
                   :mediation mediation}
            local-repo (assoc :local-repo local-repo)
-           (not quiet) (assoc :on-install print-installed!)))]
+           gitlibs-dir (assoc :gitlibs-dir gitlibs-dir)
+           (not quiet) (assoc :on-install print-installed!
+                              :on-install-coordinate print-installed!)))]
     (when-not quiet
       (doseq [warning (:warnings result)]
         (fmt.Fprintln os.Stderr
@@ -369,8 +419,8 @@
 (defn- resolve-requests
   [requests host repos]
   (mapv
-   (fn [{:keys [version] :as request}]
-     (if version
+   (fn [{:keys [version coordinate] :as request}]
+     (if (or version coordinate)
        request
        (assoc request :version
               (repo/latest-version request {:host host :repos repos}))))
@@ -393,21 +443,31 @@
 (defn- expand-result
   [parsed]
   (let [{:keys [deps options] :as input} (graph-input parsed)
-        resolution (grenadine/resolve-graph deps options)
-        coordinates (->> (:selected resolution)
-                         vals
-                         (map :coords)
-                         (sort-by (juxt :group :artifact :version))
-                         vec)]
-    (assoc input :resolution resolution :coordinates coordinates)))
+        basis (grenadine/calc-basis
+               {:deps deps}
+               (assoc options :fetch-artifacts? false))
+        entries (->> (:libs basis)
+                     (sort-by (comp str key))
+                     vec)]
+    (assoc input :basis basis :entries entries)))
+
+(defn- coordinate-line
+  [lib coordinate]
+  (case (coordinate/coordinate-type coordinate)
+    :mvn (str lib " " (:mvn/version coordinate))
+    :git (str lib " "
+              (or (:git/tag coordinate)
+                  (subs (:git/sha coordinate)
+                        0 (min 12 (count (:git/sha coordinate))))))
+    :local (str lib " " (:local/root coordinate))))
 
 (defn- print-expansion!
   [{:keys [quiet] :as parsed}]
-  (let [{:keys [resolution coordinates]} (expand-result parsed)]
+  (let [{:keys [basis entries]} (expand-result parsed)]
     (when-not quiet
-      (doseq [{:keys [group artifact version]} coordinates]
-        (fmt.Fprintln os.Stdout (str group "/" artifact " " version)))
-      (doseq [warning (:warnings resolution)]
+      (doseq [[lib coordinate] entries]
+        (fmt.Fprintln os.Stdout (coordinate-line lib coordinate)))
+      (doseq [warning (:grenadine/warnings basis)]
         (fmt.Fprintln os.Stderr
                       (str "grenadine: warning: " (pr-str warning)))))))
 
@@ -418,22 +478,34 @@
 
 (defn- list-expanded!
   [{:keys [quiet] :as parsed}]
-  (let [{:keys [host options resolution coordinates]}
+  (let [{:keys [host options basis entries]}
         (expand-result parsed)
         local-repo (repo/local-repo options)
         statuses
-        (mapv (fn [coordinate]
-                [coordinate
-                 (installed-coordinate? host local-repo coordinate)])
-              coordinates)
+        (mapv
+         (fn [[lib coordinate]]
+           [[lib coordinate]
+            (case (coordinate/coordinate-type coordinate)
+              :mvn
+              (let [[group artifact] (coordinate/split-lib lib)]
+                (installed-coordinate?
+                 host local-repo
+                 {:group group :artifact artifact
+                  :version (:mvn/version coordinate)}))
+              :git
+              ((:exists? host)
+               (gitlibs/checkout-dir
+                lib (:git/sha coordinate) options))
+              :local ((:exists? host) (:local/root coordinate)))])
+         entries)
         installed (count (filter second statuses))
         missing (- (count statuses) installed)]
     (when-not quiet
-      (doseq [[{:keys [group artifact version]} present?] statuses]
+      (doseq [[[lib coordinate] present?] statuses]
         (fmt.Fprintln os.Stdout
-                      (str group "/" artifact " " version
+                      (str (coordinate-line lib coordinate)
                            (when-not present? " MISSING"))))
-      (doseq [warning (:warnings resolution)]
+      (doseq [warning (:grenadine/warnings basis)]
         (fmt.Fprintln os.Stderr
                       (str "grenadine: warning: " (pr-str warning))))
       (fmt.Fprintln os.Stdout
@@ -508,6 +580,7 @@
                {:host host
                 :local-repo (or (:repository parsed)
                                 (:local-repo bundle))}))]
+    (validate-maven-removal! (:requests bundle))
     (delete-requests! (:requests bundle) root host quiet "Deleted")))
 
 (defn- coordinate-request
@@ -527,6 +600,7 @@
   [{:keys [quiet] :as parsed}]
   (let [host (glojure-host/host)
         bundle (input-bundle (:operands parsed) host)
+        _ (validate-maven-removal! (:requests bundle))
         options (operation-options parsed bundle host)
         root (absolute-path (repo/local-repo options))
         installed (repository-coordinates root)
@@ -632,6 +706,7 @@
         (cond
           (seq operands) (fail! "--mediators does not accept items")
           repository (fail! "--mediators does not use --repository")
+          (:gitlibs parsed) (fail! "--mediators does not use --gitlibs")
           (:quiet parsed) (fail! "--mediators does not use --quiet")
           :else (list-mediators! options))
         list (if (seq operands)

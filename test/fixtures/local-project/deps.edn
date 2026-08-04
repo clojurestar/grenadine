@@ -1,0 +1,3 @@
+{:deps
+ {example/local
+  {:local/root "../local-lib"}}}

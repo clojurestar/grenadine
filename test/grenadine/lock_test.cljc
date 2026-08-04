@@ -26,3 +26,25 @@
          (lock/lock->classpath
           {:artifacts [{:path "demo/a/1/a-1.jar"}]}
           {:local-repo "/tmp/m2/"}))))
+
+(deftest reconstructs-mixed-version-two-classpath
+  (let [sha (apply str (repeat 40 "a"))
+        result
+        (lock/lock->classpath
+         {:lock/version 2
+          :libs
+          [{:lib 'demo/maven
+            :coord {:mvn/version "1"}
+            :classpath [{:type :mvn :path "demo/maven/1/maven-1.jar"}]}
+           {:lib 'demo/git
+            :coord {:git/url "https://example.test/demo.git" :git/sha sha}
+            :classpath [{:type :git :path "src"}]}
+           {:lib 'demo/local
+            :coord {:local/root "/work/local"}
+            :classpath [{:type :local :path "/work/local/src"}]}]}
+         {:local-repo "/tmp/m2"
+          :gitlibs-dir "/tmp/gitlibs"})]
+    (is (= [(str "/tmp/m2/demo/maven/1/maven-1.jar")
+            (str "/tmp/gitlibs/libs/demo/git/" sha "/src")
+            "/work/local/src"]
+           result))))

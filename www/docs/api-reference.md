@@ -6,6 +6,18 @@ constructors such as `grenadine.host.jvm/host` provide platform effects.
 
 ## High-level operations
 
+### `calc-basis`
+
+```clojure
+(calc-basis deps-map opts) ;=> basis
+```
+
+Resolves Maven, Git, and local coordinates and returns tools.deps-compatible
+`:libs`, `:classpath`, and `:classpath-roots` keys. `:resolve-args` accepts
+`:extra-deps`, `:override-deps`, and `:default-deps`; `:classpath-args` accepts
+`:extra-paths`, `:replace-paths`, and `:classpath-overrides`. Grenadine adds
+namespaced lock, procurement, warning, and source-root details.
+
 ### `expand-deps`
 
 ```clojure
@@ -30,7 +42,8 @@ each warning as it occurs.
 (install! deps opts) ;=> result
 ```
 
-Resolves and installs a deps.edn-style Maven dependency map. Important options:
+Resolves and installs a deps.edn-style Maven, Git, and local dependency map.
+Important options:
 
 | Option | Meaning |
 | --- | --- |
@@ -38,6 +51,8 @@ Resolves and installs a deps.edn-style Maven dependency map. Important options:
 | `:mediation` | `:newest`, `:nearest`, or `:tools-deps`. |
 | `:repos` | Ordered remote repositories; defaults to Central and Clojars. |
 | `:local-repo` | Maven repository path. |
+| `:gitlibs-dir` | tools.gitlibs-compatible Git cache path. |
+| `:base-dir` | Directory for relative local coordinates. |
 | `:include-optional?` | Include optional transitive dependencies. |
 | `:exclusions` | Global exclusions as symbols, strings, or coordinate maps. |
 | `:source-roots?` | Extract installed JARs and return source roots. |
@@ -56,6 +71,7 @@ The result contains:
 | `:source-roots` | Extracted roots, or `nil` when extraction was not requested. |
 | `:lock` | Enriched deterministic lock data. |
 | `:resolution` | Full graph-resolution result. |
+| `:basis` | Complete tools.deps-shaped basis. |
 | `:warnings` | Resolution and repository warnings. |
 
 Artifact or extraction failures throw `ExceptionInfo` with type
@@ -109,10 +125,10 @@ reported as structured exceptions.
 (emit-lock resolution opts) ;=> lock
 ```
 
-Converts a resolution into stable version 1 lock data. `:repos` controls the
-repository list, `:repo-fn` selects an index for each coordinate, `:pom-fn`
-identifies `pom` packaging, and `:integrity` may supply GAV-keyed SHA-256 and
-size values.
+The low-level Maven graph form produces a stable version 1 lock for backward
+compatibility. `calc-basis` and `install!` emit version 2 locks containing all
+selected Maven, Git, and local libraries. `:repos` controls the repository
+list, and `:integrity` may supply GAV-keyed SHA-256 and size values.
 
 ### `fetch-lock!`
 
@@ -126,10 +142,12 @@ and `:warnings`; this lower-level function reports failures as data.
 ### `lock->classpath`
 
 ```clojure
-(lock->classpath lock {:local-repo "/path/to/m2"}) ;=> [paths...]
+(lock->classpath lock {:local-repo "/path/to/m2"
+                       :gitlibs-dir "/path/to/gitlibs"}) ;=> [paths...]
 ```
 
-Returns local artifact paths without touching the filesystem.
+Returns Maven artifact, Git checkout, and local coordinate paths without
+touching the filesystem. Version 1 Maven locks remain supported.
 
 ### `prepare-source-roots!`
 

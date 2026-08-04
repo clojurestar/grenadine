@@ -1,6 +1,6 @@
 # Library guide
 
-Grenadine separates pure Maven model and graph operations from filesystem,
+Grenadine separates dependency model and graph operations from filesystem,
 network, digest, and archive effects. A host map supplies those effects, so
 the same resolver can run across Clojure implementations.
 
@@ -8,15 +8,15 @@ the same resolver can run across Clojure implementations.
 
 The high-level `grenadine.core/install!` operation performs these steps:
 
-1. Fetch and parse POMs, including parents and imported BOMs.
-2. Interpolate Maven properties and apply dependency management.
+1. Canonicalize Maven, Git, and local coordinates.
+2. Fetch POMs and Git checkouts and read dependency manifests.
 3. Walk the transitive graph while honoring exclusions, scopes, and optional
    dependencies.
 4. Mediate version conflicts.
-5. Emit a deterministic lock and install its artifacts.
+5. Build a tools.deps-shaped basis and deterministic version 2 lock.
 6. Optionally extract portable Clojure source roots from installed JARs.
 
-The individual stages are also public through `effective-pom`,
+The individual stages are also public through `calc-basis`, `effective-pom`,
 `expand-deps`, `resolve-graph`, `emit-lock`, `fetch-lock!`, and
 `prepare-source-roots!`.
 
@@ -36,7 +36,7 @@ Grenadine's path-aware Maven occurrence graph.
 
 ## Dependency coordinates
 
-Grenadine accepts a deps.edn-style map. Version 0.1 supports Maven coordinates:
+Grenadine accepts Maven, Git, and local coordinates in a deps.edn-style map:
 
 ```clojure
 '{org.clojure/data.csv
@@ -44,12 +44,27 @@ Grenadine accepts a deps.edn-style map. Version 0.1 supports Maven coordinates:
 
   example/application
   {:mvn/version "2.0.0"
-   :exclusions [example/unwanted]}}
+   :exclusions [example/unwanted]}
+
+  io.github.example/tool
+  {:git/url "https://github.com/example/tool.git"
+   :git/sha "0123456789abcdef0123456789abcdef01234567"}
+
+  example/local
+  {:local/root "../local-lib"}}
 ```
 
 Library names may be symbols or strings. An unqualified name uses the same
-value for the Maven group and artifact. Coordinates without `:mvn/version`,
-including Git and local coordinates, are rejected.
+value for the Maven group and artifact. Legacy Git `:sha` and `:tag` keys are
+accepted. A tag may be paired with an abbreviated SHA; the resolved commit must
+match that prefix. Common GitHub, GitLab, Bitbucket, Codeberg, Beanstalk, and
+SourceHut URLs can be inferred from reverse-domain library names.
+
+Relative local roots are resolved from the deps file that declares them and
+then canonicalized. Git and local directories must contain `deps.edn` or
+`pom.xml`; `deps.edn` wins when both exist. Use `:deps/manifest :deps` or
+`:deps/manifest :pom` to choose explicitly. `:deps/root` selects a safe nested
+project root. Local JAR coordinates read embedded Maven metadata when present.
 
 Compile and runtime dependencies are included. Test, provided, system, and
 other non-runtime scopes are omitted. Optional transitive dependencies are
@@ -99,6 +114,20 @@ POMs and artifacts already present locally are reused. If an artifact is
 missing from its preferred remote, the remaining configured repositories are
 tried in order.
 
+Git checkouts use the tools.gitlibs layout: mirrors live under `_repos` and
+detached worktrees under `libs/<namespace>/<name>/<full-sha>`. The Git cache is
+selected in this order:
+
+1. `:gitlibs-dir` in operation options or `-G/--gitlibs` in the CLI;
+2. top-level `:gitlibs/dir` in a deps source;
+3. `GRENADINE_GITLIBS`;
+4. `GITLIBS`;
+5. `$HOME/.gitlibs`.
+
+Set `GITLIBS_COMMAND` to select another Git executable. Git is invoked with an
+argument vector, never through a shell, and is only required when a Git
+coordinate is resolved.
+
 ## Integrity and atomic installation
 
 A lock may supply SHA-256 and size metadata. Supplied SHA-256 values are
@@ -110,13 +139,26 @@ Downloads are written to a temporary `.grenadine.part` file and moved into
 place after verification. Source extraction uses digest-keyed directories and
 a completion marker so a host can perform safe, repeatable extraction.
 
-## Locks and source roots
+## Bases, locks, and source roots
 
-A version 1 lock is ordinary data:
+`calc-basis` returns the familiar tools.deps keys `:libs`, `:classpath`, and
+`:classpath-roots`, plus namespaced Grenadine procurement and lock details.
+The oracle compares the complete public basis shape with JVM tools.deps for a
+curated corpus and deterministic generated Maven graphs.
+
+A new resolution emits a version 2 lock. Each selected library records its
+canonical coordinate, manifest, and effective relative classpath entries;
+Git SHAs are full commits and local roots are absolute. Maven artifacts and
+repository integrity remain in `:artifacts` and `:repos`:
 
 ```clojure
-{:lock/version 1
+{:lock/version 2
  :repos ["https://repo.maven.apache.org/maven2/"]
+ :libs [{:lib org.clojure/data.csv
+         :coord {:mvn/version "1.1.0"}
+         :deps/manifest :mvn
+         :classpath [{:type :mvn
+                      :path "org/clojure/data.csv/1.1.0/data.csv-1.1.0.jar"}]}]
  :artifacts
  [{:group "org.clojure"
    :artifact "data.csv"
@@ -127,6 +169,8 @@ A version 1 lock is ordinary data:
    :sha256 "..."
    :size 12345}]}
 ```
+
+Version 1 Maven-only locks remain readable and fetchable.
 
 Pass `:source-roots? true` to `install!` to extract installed JARs and return
 `:source-roots`. Pass `:source-libs` as a set of library symbols to restrict

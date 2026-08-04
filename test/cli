@@ -172,6 +172,8 @@ check "mediators reject items" 1 '--mediators does not accept items' \
   "$grenadine" --mediators demo/root
 check "mediators reject repository" 1 '--mediators does not use --repository' \
   "$grenadine" --repository somewhere --mediators
+check "mediators reject gitlibs" 1 '--mediators does not use --gitlibs' \
+  "$grenadine" --gitlibs somewhere --mediators
 check "mediator rejects unknown strategy" 1 \
   'unknown mediation strategy: random' \
   "$grenadine" --mediator=random --expand demo/root 1.0.0
@@ -337,8 +339,28 @@ check "deps map validation" 1 ':deps must be a map' \
 
 printf '{:deps {org.example/demo {:git/url "https://example.invalid"}}}\n' \
   > "$deps_file"
-check "unsupported coordinate" 1 'requires :mvn/version' \
+check "incomplete Git coordinate" 1 'requires :git/sha' \
   "$grenadine" "--repository=$explicit_repo" --add "$deps_file"
+
+local_lib="$temporary/local-lib"
+mkdir -p "$local_lib/src"
+printf '{:paths ["src"] :deps {}}\n' > "$local_lib/deps.edn"
+printf '{:deps {example/local {:local/root "./local-lib"}}}\n' > "$deps_file"
+check_exact "expand local coordinate" 0 \
+  "example/local $local_lib" \
+  "$grenadine" --expand "$deps_file"
+check_exact "list local coordinate" 0 \
+  $'example/local '"$local_lib"$'\n=> Installed: 1  Missing: 0  Total: 1' \
+  "$grenadine" --list "$deps_file"
+check_exact "add local coordinate" 0 \
+  '=> Installed: 0  Already: 1  Total: 1' \
+  "$grenadine" --add "$deps_file"
+check "delete rejects local coordinate" 1 \
+  'support only Maven coordinates' \
+  "$grenadine" --delete "$deps_file"
+check "remove rejects local coordinate" 1 \
+  'support only Maven coordinates' \
+  "$grenadine" --remove "$deps_file"
 
 if (( failures )); then
   echo "$failures of $checks CLI checks failed" >&2
