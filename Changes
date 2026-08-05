@@ -1,3 +1,9 @@
+- version: 0.1.5
+  date:    Wed Aug  5 08:46:52 AM EDT 2026
+  changes:
+  - Support legacy Maven dependency forms
+  - Add Git and local dependency resolution
+
 - version: 0.1.4
   date:    Mon Aug  3 02:14:56 PM EDT 2026
   changes:

@@ -10,7 +10,7 @@ starting a JVM.
 Grenadine is published to Clojars as `cc.clojure/grenadine`:
 
 ```clojure
-{:deps {cc.clojure/grenadine {:mvn/version "0.1.4"}}}
+{:deps {cc.clojure/grenadine {:mvn/version "0.1.5"}}}
 ```
 
 The smallest JVM-hosted installation looks like this:

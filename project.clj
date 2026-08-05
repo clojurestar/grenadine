@@ -1,4 +1,4 @@
-(defproject cc.clojure/grenadine "0.1.4"
+(defproject cc.clojure/grenadine "0.1.5"
   :description "Portable Maven dependency resolution for Clojure dialects"
   :url "https://github.com/clojurestar/grenadine"
 

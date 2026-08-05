@@ -18,13 +18,13 @@ deterministic locks, and prepares source roots for non-JVM runtimes.
 Add the following dependency to your deps.edn file:
 
 ```clojure
-{:deps {cc.clojure/grenadine {:mvn/version "0.1.4"}}}
+{:deps {cc.clojure/grenadine {:mvn/version "0.1.5"}}}
 ```
 
 Or to your Leiningen project file:
 
 ```clojure
-[cc.clojure/grenadine "0.1.4"]
+[cc.clojure/grenadine "0.1.5"]
 ```
 
 
