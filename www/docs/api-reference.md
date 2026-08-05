@@ -16,7 +16,10 @@ Resolves Maven, Git, and local coordinates and returns tools.deps-compatible
 `:libs`, `:classpath`, and `:classpath-roots` keys. `:resolve-args` accepts
 `:extra-deps`, `:override-deps`, and `:default-deps`; `:classpath-args` accepts
 `:extra-paths`, `:replace-paths`, and `:classpath-overrides`. Grenadine adds
-namespaced lock, procurement, warning, and source-root details.
+namespaced lock, procurement, warning, and source-root details. Unqualified
+Maven names, `artifact$classifier` names, and Maven version ranges are
+canonicalized before graph expansion; returned bases and locks use concrete
+versions.
 
 ### `expand-deps`
 

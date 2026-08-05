@@ -137,3 +137,27 @@
     (is (= #{["demo" "a"] ["demo" "b"]
              ["demo" "c"] ["demo" "d"]}
            (set (keys (:selected resolution)))))))
+
+(deftest classifiers-have-distinct-library-identities
+  (let [custom-poms
+        {["demo" "root" "1"]
+         {:deps [{:group "demo" :artifact "native" :classifier "linux"
+                  :version "1"}]}
+         ["demo" "native" "1"] {:deps []}}
+        pom-fn (fn [{:keys [group artifact version]}]
+                 (get custom-poms [group artifact version]))
+        resolution
+        (graph/resolve-graph '{demo/root {:mvn/version "1"}
+                               demo/native {:mvn/version "1"}
+                               demo/native$linux {:mvn/version "1"}}
+                             {:pom-fn pom-fn})]
+    (is (= #{["demo" "root"]
+             ["demo" "native"]
+             ["demo" "native$linux"]}
+           (set (keys (:selected resolution)))))
+    (is (= #{["demo" "root"]}
+           (-> (graph/resolve-graph
+                '{demo/root {:mvn/version "1"
+                             :exclusions #{demo/native}}}
+                {:pom-fn pom-fn})
+               :selected keys set)))))

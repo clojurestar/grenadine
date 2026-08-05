@@ -55,16 +55,22 @@ Grenadine accepts Maven, Git, and local coordinates in a deps.edn-style map:
 ```
 
 Library names may be symbols or strings. An unqualified name uses the same
-value for the Maven group and artifact. Legacy Git `:sha` and `:tag` keys are
-accepted. A tag may be paired with an abbreviated SHA; the resolved commit must
-match that prefix. Common GitHub, GitLab, Bitbucket, Codeberg, Beanstalk, and
-SourceHut URLs can be inferred from reverse-domain library names.
+value for the Maven group and artifact. Maven classifiers use tools.deps
+`group/artifact$classifier` syntax. Maven version ranges such as `[1.0,2.0)`
+are resolved from configured repository metadata before graph expansion and
+locks contain the selected concrete version. Legacy Git `:sha` and `:tag` keys
+are accepted. A tag may be paired with an abbreviated SHA; the resolved commit
+must match that prefix. Common GitHub, GitLab, Bitbucket, Codeberg, Beanstalk,
+and SourceHut URLs can be inferred from reverse-domain library names.
 
-Relative local roots are resolved from the deps file that declares them and
-then canonicalized. Git and local directories must contain `deps.edn` or
-`pom.xml`; `deps.edn` wins when both exist. Use `:deps/manifest :deps` or
-`:deps/manifest :pom` to choose explicitly. `:deps/root` selects a safe nested
-project root. Local JAR coordinates read embedded Maven metadata when present.
+Relative local roots are resolved from a filesystem-backed deps file that
+declares them and then canonicalized. A remote HTTP deps source must use
+absolute local roots; Grenadine does not check out the source repository to
+materialize adjacent directories. Git and local directories must contain
+`deps.edn` or `pom.xml`; `deps.edn` wins when both exist. Use
+`:deps/manifest :deps` or `:deps/manifest :pom` to choose explicitly.
+`:deps/root` selects a safe nested project root. Local JAR coordinates read
+embedded Maven metadata when present.
 
 Compile and runtime dependencies are included. Test, provided, system, and
 other non-runtime scopes are omitted. Optional transitive dependencies are

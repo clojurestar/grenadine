@@ -90,6 +90,29 @@
             {:host host
              :repos ["https://central.example" "https://clojars.example"]})))))
 
+(deftest resolves-highest-matching-version-range-across-repositories
+  (let [central "https://central.example/demo/a/maven-metadata.xml"
+        clojars "https://clojars.example/demo/a/maven-metadata.xml"
+        {:keys [host]}
+        (fake-host
+         {}
+         {central {:status 200
+                   :body (metadata {:versions ["4.9" "5.0" "5.9" "6.0"]})}
+          clojars {:status 200
+                   :body (metadata {:versions ["5.10" "5.11"]})}})]
+    (is (= "5.11"
+           (repo/resolve-version-range
+            {:group "demo" :artifact "a"}
+            "[5.0,6.0)"
+            {:host host
+             :repos ["https://central.example" "https://clojars.example"]})))
+    (is (throws?
+         (repo/resolve-version-range
+          {:group "demo" :artifact "a"}
+          "[7.0,8.0)"
+          {:host host
+           :repos ["https://central.example" "https://clojars.example"]})))))
+
 (deftest rejects-missing-and-invalid-metadata
   (let [{missing-host :host} (fake-host {} {})
         url "https://repo.example/demo/a/maven-metadata.xml"
@@ -103,6 +126,20 @@
          (repo/latest-version
           {:group "demo" :artifact "a"}
           {:host invalid-host :repos ["https://repo.example"]})))))
+
+(deftest fetches-timestamped-snapshot-poms-from-the-base-version-directory
+  (let [relative (str "metosin/malli/0.0.1-SNAPSHOT/"
+                      "malli-0.0.1-20200715.082439-21.pom")
+        url (str "https://repo.example/" relative)
+        {:keys [host files]}
+        (fake-host {} {url {:status 200 :body "<project/>"}})
+        fetch-pom (repo/pom-fetcher
+                   {:host host :local-repo "/m2"
+                    :repos ["https://repo.example"]})]
+    (is (= "<project/>"
+           (fetch-pom {:group "metosin" :artifact "malli"
+                       :version "0.0.1-20200715.082439-21"})))
+    (is (= "<project/>" (get @files (str "/m2/" relative))))))
 
 (deftest fetches-verifies-and-enriches-lock
   (let [url "https://repo.example/demo/a/1/a-1.jar"

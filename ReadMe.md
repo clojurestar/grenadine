@@ -89,7 +89,11 @@ precedence over `:mvn/local-repo` in the deps source,
 Deps sources may contain Maven, Git, and local coordinates. Git coordinates
 use a tools.gitlibs-compatible cache selected by `-G/--gitlibs`, top-level
 `:gitlibs/dir`, `GRENADINE_GITLIBS`, `GITLIBS`, or `$HOME/.gitlibs`, in that
-order. Git is only required when a Git coordinate is encountered.
+order. Git is only required when a Git coordinate is encountered. Unqualified
+Maven names mean `name/name`, classifiers use
+`group/artifact$classifier`, and Maven version ranges are resolved to concrete
+versions before expansion. Relative `:local/root` values require a local deps
+source; an HTTP source must use an absolute root.
 
 `--add`, `--list`, `--delete`, `--remove`, and `--expand` accept mixed lists of
 `group/artifact [version]` requests and local or remote deps sources. `--delete`

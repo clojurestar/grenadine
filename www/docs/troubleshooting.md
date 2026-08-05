@@ -14,6 +14,17 @@ Central and Clojars. The CLI merges `:mvn/repos` into those defaults. Private
 repository authentication is not currently part of the public repository
 contract.
 
+Grenadine resolves Maven version ranges from repository metadata, but the
+selected concrete POM and artifact must still exist. It does not replace an
+unavailable `-SNAPSHOT` with a nearby release or prerelease.
+
+## A remote deps source contains a relative local root
+
+Remote HTTP sources are fetched as individual files, not as repository
+checkouts, so Grenadine cannot materialize a relative `:local/root`. Use a
+filesystem-backed deps source, an absolute root, or a Git coordinate for the
+dependency.
+
 For an isolated installation, select an explicit directory:
 
 ```sh

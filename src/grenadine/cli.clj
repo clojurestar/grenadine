@@ -114,7 +114,8 @@
                (update options :operands (fnil conj []) argument)))
       options)))
 
-(def library-pattern #"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
+(def library-pattern
+  #"^[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)?(?:[$][A-Za-z0-9_.-]+)?$")
 (def component-pattern #"^[A-Za-z0-9_.-]+$")
 (def mediator-strategies
   {"newest" :newest
@@ -130,13 +131,19 @@
 (defn- library-coordinate [value]
   (when-not (re-matches library-pattern value)
     (fail! (str "invalid library name: " value)))
-  (let [[group artifact] (str/split value #"/")
-        components (concat (str/split group #"\.") [artifact])]
+  (let [[group artifact classifier]
+        (coordinate/split-lib value)
+        components (concat (str/split group #"\.")
+                           [artifact]
+                           (when classifier [classifier]))]
     (when (some #(or (= "." %) (= ".." %)
                      (not (re-matches component-pattern %)))
                 components)
       (fail! (str "invalid library name: " value)))
-    {:name value :group group :artifact artifact}))
+    (cond-> {:name value :group group :artifact artifact}
+      classifier (assoc :classifier classifier))))
+
+(declare explicit-source?)
 
 (defn- valid-version! [value]
   (when (or (empty? value)
@@ -146,6 +153,14 @@
             (str/includes? value "\\"))
     (fail! (str "invalid version: " value)))
   value)
+
+(defn- version-operand?
+  [value host]
+  (and value
+       (not (explicit-source? value host))
+       (or (not (re-matches library-pattern value))
+           (boolean (re-matches #"^[0-9].*" value))
+           (contains? #{"LATEST" "RELEASE"} value))))
 
 (defn- mediation-strategy [value]
   (if value
@@ -170,10 +185,13 @@
   requests)
 
 (defn- validate-maven-removal! [requests]
-  (doseq [{:keys [name coordinate]} requests]
+  (doseq [{:keys [name coordinate classifier]} requests]
     (when (and coordinate
                (not= :mvn (coordinate/coordinate-type coordinate)))
       (fail! (str "--delete and --remove support only Maven coordinates: "
+                  name)))
+    (when classifier
+      (fail! (str "--delete and --remove do not support Maven classifiers: "
                   name))))
   requests)
 
@@ -277,9 +295,7 @@
         (let [request (library-coordinate value)
               following (second remaining)
               version
-              (when (and following
-                         (not (explicit-source? following host))
-                         (not (re-matches library-pattern following)))
+              (when (version-operand? following host)
                 (valid-version! following))]
           (recur (drop (if version 2 1) remaining)
                  (conj items
@@ -487,11 +503,12 @@
            [[lib coordinate]
             (case (coordinate/coordinate-type coordinate)
               :mvn
-              (let [[group artifact] (coordinate/split-lib lib)]
+              (let [[group artifact classifier] (coordinate/split-lib lib)]
                 (installed-coordinate?
                  host local-repo
-                 {:group group :artifact artifact
-                  :version (:mvn/version coordinate)}))
+                 (cond-> {:group group :artifact artifact
+                          :version (:mvn/version coordinate)}
+                   classifier (assoc :classifier classifier))))
               :git
               ((:exists? host)
                (gitlibs/checkout-dir

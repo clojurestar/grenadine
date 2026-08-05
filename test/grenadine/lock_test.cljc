@@ -27,6 +27,25 @@
           {:artifacts [{:path "demo/a/1/a-1.jar"}]}
           {:local-repo "/tmp/m2/"}))))
 
+(deftest emits-classified-artifact-paths
+  (let [result
+        (lock/emit-lock
+         {:selected
+          {["org.lwjgl" "lwjgl-stb$natives-linux"]
+           {:coords {:group "org.lwjgl" :artifact "lwjgl-stb"
+                     :classifier "natives-linux" :version "3.2.3"}}}}
+         {:pom-fn (fn [_] {:packaging "jar"})})]
+    (is (= "natives-linux" (get-in result [:artifacts 0 :classifier])))
+    (is (= "org/lwjgl/lwjgl-stb/3.2.3/lwjgl-stb-3.2.3-natives-linux.jar"
+           (get-in result [:artifacts 0 :path])))))
+
+(deftest emits-timestamped-snapshots-under-the-base-version
+  (is (= (str "metosin/malli/0.0.1-SNAPSHOT/"
+              "malli-0.0.1-20200715.082439-21.jar")
+         (lock/artifact-path
+          {:group "metosin" :artifact "malli"
+           :version "0.0.1-20200715.082439-21"}))))
+
 (deftest reconstructs-mixed-version-two-classpath
   (let [sha (apply str (repeat 40 "a"))
         result

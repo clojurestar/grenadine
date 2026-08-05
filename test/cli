@@ -186,6 +186,15 @@ check "expand requires an item" 1 \
 
 resolve_repo="$temporary/resolve repo"
 seed_resolve_repo "$resolve_repo"
+write_pom "$resolve_repo" hiccup hiccup 1.0.5 ''
+write_pom "$resolve_repo" org.lwjgl lwjgl-stb 3.2.3 ''
+check_exact "expand unqualified legacy library" 0 \
+  'hiccup 1.0.5' \
+  "$grenadine" --repository "$resolve_repo" --expand hiccup 1.0.5
+check_exact "expand Maven classifier" 0 \
+  "org.lwjgl/lwjgl-stb\$natives-macos 3.2.3" \
+  "$grenadine" --repository "$resolve_repo" --expand \
+    "org.lwjgl/lwjgl-stb\$natives-macos" 3.2.3
 check_exact "expand defaults to tools-deps" 0 \
   $'demo/branch 1.0.0\ndemo/c 2.0.0\ndemo/root 1.0.0' \
   "$grenadine" --repository "$resolve_repo" --expand demo/root 1.0.0
@@ -246,8 +255,8 @@ check_empty "quiet add" 0 \
     --add org.example/demo 1.0.0
 check "add requires an item" 1 '--add requires at least one item' \
   "$grenadine" --add
-check "add rejects unreadable source" 1 'cannot read example' \
-  "$grenadine" --add example 1.0.0
+check "add rejects unreadable source" 1 'cannot read missing.edn' \
+  "$grenadine" --add missing.edn
 
 remove_repo="$temporary/remove repo"
 seed_list_repo "$remove_repo"
@@ -282,6 +291,9 @@ check "delete requires an item" 1 \
   '--delete requires at least one item' "$grenadine" --delete
 check "delete rejects unsafe name" 1 'invalid library name' \
   "$grenadine" --repository "$remove_repo" --delete ../outside
+check "delete rejects Maven classifier" 1 'do not support Maven classifiers' \
+  "$grenadine" --repository "$remove_repo" --delete \
+    "org.lwjgl/lwjgl-stb\$natives-macos" 3.2.3
 mkdir -p "$remove_repo/org/example/safe/1.0.0"
 check "remove validates before deleting" 1 'invalid library name' \
   "$grenadine" --repository "$remove_repo" --delete \
