@@ -219,7 +219,7 @@ dependency backend; the `clojurestar.deps` namespace is the intentionally small
 common API over them.
 
 
-## Acknowledgements and provenance
+## Acknowledgements and Provenance
 
 Grenadine's portable dependency expansion, coordinate handling, basis
 construction, and Git cache are generated from pinned source files in the

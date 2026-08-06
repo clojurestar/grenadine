@@ -8,7 +8,9 @@ bb=${BB:?BB is required}
 temporary=$(mktemp -d)
 trap 'rm -rf -- "$temporary"' EXIT
 
-current=$(< "$top/VERSION")
+current=$(sed -n \
+  's/^GRENADINE-VERSION := \([0-9][0-9.]*\)$/\1/p' \
+  "$top/Makefile")
 IFS=. read -r major minor patch <<< "$current"
 version="$major.$minor.$((patch + 1))"
 repo="$temporary/repo"
@@ -18,7 +20,7 @@ secrets="$temporary/publish-secrets.yaml"
 missing_token="$temporary/missing-token.yaml"
 
 mkdir -p "$repo/util" "$repo/www/docs" "$repo/test" "$fake_bin"
-cp "$top/Changes" "$top/VERSION" "$top/project.clj" "$top/ReadMe.md" \
+cp "$top/Changes" "$top/Makefile" "$top/ReadMe.md" \
   "$repo/"
 cp "$top/www/docs/getting-started.md" "$top/www/docs/installation.md" \
   "$repo/www/docs/"
@@ -67,13 +69,10 @@ expect_failure() {
 
 expect_failure validation-stop run_release
 [[ $(git -C "$repo" log -1 --format=%s) == "Release $version" ]]
-[[ $(< "$repo/VERSION") == "$version" ]]
-[[ $(sed -n \
-  's/^(defproject cc\.clojure\/grenadine "\([^"]*\)".*/\1/p' \
-  "$repo/project.clj") == "$version" ]]
+grep -Fqx "GRENADINE-VERSION := $version" "$repo/Makefile"
 grep -q "^- version: $version\$" "$repo/Changes"
 if git -C "$repo" grep -qF "$current" -- \
-  ReadMe.md VERSION www; then
+  Makefile ReadMe.md www; then
   echo 'old published version remains' >&2
   exit 1
 fi
@@ -88,7 +87,7 @@ grep -Fq "cc.clojure/grenadine {:mvn/version \"$version\"}" \
   "$repo/www/docs/installation.md"
 changed=$(git -C "$repo" diff-tree --no-commit-id --name-only -r HEAD | sort)
 expected=$(printf '%s\n' \
-  Changes ReadMe.md VERSION project.clj \
+  Changes Makefile ReadMe.md \
   www/docs/getting-started.md www/docs/installation.md | sort)
 [[ $changed == "$expected" ]]
 [[ -z $(git -C "$repo" status --short) ]]

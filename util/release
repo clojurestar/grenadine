@@ -13,8 +13,7 @@ version=${version#v}
 
 top=$(git rev-parse --show-toplevel)
 changes_file="$top/Changes"
-version_file="$top/VERSION"
-project_file="$top/project.clj"
+makefile="$top/Makefile"
 deployed_marker="$top/.cache/clojars/$version.deployed"
 secrets_file=${PUBLISH_SECRETS:-${HOME:?}/.publish-secrets}
 bb=${BB:-bb}
@@ -23,10 +22,10 @@ has_changes_entry() {
   grep -q "^- version: $version\$" "$changes_file"
 }
 
-project_version() {
+current_version() {
   sed -n \
-    's/^(defproject cc\.clojure\/grenadine "\([^"]*\)".*/\1/p' \
-    "$project_file"
+    's/^GRENADINE-VERSION := \([0-9][0-9.]*\)$/\1/p' \
+    "$makefile"
 }
 
 version_reference_files() {
@@ -41,8 +40,7 @@ version_reference_files() {
       echo "$file"
     fi
   done
-  [[ $(< "$version_file") == "$1" ]] && echo VERSION
-  [[ $(project_version) == "$1" ]] && echo project.clj
+  [[ $(current_version) == "$1" ]] && echo Makefile
 }
 
 release_files() {
@@ -63,33 +61,28 @@ bump_version_references() {
       's/(?<![0-9.])\Q$ENV{OLD_VERSION}\E(?![0-9.])/$ENV{NEW_VERSION}/g' \
       "$file"
   done
-  printf '%s\n' "$version" > "$version_file"
-  set_project_version
+  set_makefile_version
 }
 
-set_project_version() {
+set_makefile_version() {
   local temporary
   temporary=$(mktemp)
   awk -v version="$version" \
-    'NR == 1 { sub(/"[^"]+"/, "\"" version "\"") } { print }' \
-    "$project_file" > "$temporary"
-  head -1 "$temporary" |
-    grep -Fqx "(defproject cc.clojure/grenadine \"$version\""
-  mv "$temporary" "$project_file"
+    '/^GRENADINE-VERSION := / {
+       print "GRENADINE-VERSION := " version
+       found = 1
+       next
+     }
+     { print }
+     END { if (!found) exit 1 }' \
+    "$makefile" > "$temporary"
+  grep -Fqx "GRENADINE-VERSION := $version" "$temporary"
+  mv "$temporary" "$makefile"
 }
 
 prepare() {
-  if [[ $(< "$version_file") == "$version" ]] && has_changes_entry; then
-    if [[ $(project_version) == "$version" ]]; then
-      echo "Release v$version is already prepared"
-      return
-    fi
-    [[ -z $(git status --short) ]] || {
-      echo "release: prepare requires a clean worktree" >&2
-      exit 1
-    }
-    set_project_version
-    echo "Release v$version project metadata prepared"
+  if [[ $(current_version) == "$version" ]] && has_changes_entry; then
+    echo "Release v$version is already prepared"
     return
   fi
   [[ -z $(git status --short) ]] || {
@@ -98,11 +91,7 @@ prepare() {
   }
 
   local current previous_tag changes temporary previous_changes
-  current=$(< "$version_file")
-  [[ $(project_version) == "$current" ]] || {
-    echo "release: VERSION and project.clj do not agree" >&2
-    exit 1
-  }
+  current=$(current_version)
   previous_tag=$(git tag -l 'v[0-9]*' --sort=-v:refname | head -1)
   if [[ -n $previous_tag ]]; then
     changes=$(git log "$previous_tag"..HEAD --format='%s' |
@@ -151,9 +140,8 @@ release_notes() {
 
 release_commit_ready() {
   local changed expected
-  [[ $(< "$version_file") == "$version" ]] || return 1
+  [[ $(current_version) == "$version" ]] || return 1
   has_changes_entry || return 1
-  [[ $(project_version) == "$version" ]] || return 1
   [[ $(git log -1 --format=%s) == "Release $version" ]] || return 1
   changed=$(git diff-tree --no-commit-id --name-only -r HEAD | sort)
   expected=$(release_files)
@@ -223,14 +211,10 @@ validate_git_context() {
 validate_release_state() {
   local tag
   validate_git_context
-  if [[ $(< "$version_file") != "$version" ]] || ! has_changes_entry; then
-    echo "release: v$version is not represented by VERSION and Changes" >&2
+  if [[ $(current_version) != "$version" ]] || ! has_changes_entry; then
+    echo "release: v$version is not represented by Makefile and Changes" >&2
     exit 1
   fi
-  [[ $(project_version) == "$version" ]] || {
-    echo "release: project.clj does not declare v$version" >&2
-    exit 1
-  }
   release_commit_ready || {
     echo "release: HEAD is not the Release $version metadata commit" >&2
     exit 1
@@ -259,11 +243,7 @@ check_clojars() {
 preflight_new_release() {
   local current tag
   validate_git_context
-  current=$(< "$version_file")
-  [[ $(project_version) == "$current" ]] || {
-    echo "release: VERSION and project.clj do not agree" >&2
-    exit 1
-  }
+  current=$(current_version)
   [[ $current != "$version" ]] || {
     echo "release: version $version is already current but HEAD is not its release commit" >&2
     exit 1
@@ -332,7 +312,7 @@ deploy_clojars() {
     echo "Clojars cc.clojure/grenadine $version is already marked deployed"
     return
   fi
-  lein deploy clojars
+  make deploy-clojars VERSION="$version"
   mkdir -p "$(dirname "$deployed_marker")"
   touch "$deployed_marker"
 }
@@ -351,7 +331,7 @@ validate_jar() {
   grep -Fq "<version>$version</version>" <<< "$pom"
   listing=$(unzip -Z1 "$jar")
   grep -Fxq grenadine/core.cljc <<< "$listing"
-  grep -Fxq META-INF/leiningen/cc.clojure/grenadine/License \
+  grep -Fxq META-INF/LICENSE \
     <<< "$listing"
   grep -Fxq ThirdPartyNotices.md <<< "$listing"
   grep -Fxq Provenance.md <<< "$listing"

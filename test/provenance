@@ -5,7 +5,7 @@ set -euo pipefail
 top=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 
 grep -Fqx 'Eclipse Public License - v 1.0' "$top/License"
-grep -Fq ':name "Eclipse Public License 1.0"' "$top/project.clj"
+grep -Fq '[:name "Eclipse Public License 1.0"]' "$top/util/build.clj"
 grep -Fq 'license "EPL-1.0"' "$top/util/brew-update"
 
 for project in tools.deps tools.deps.edn tools.gitlibs; do
@@ -45,6 +45,10 @@ grep -Fq "cp -R \"\$top/licenses/.\" \"\$license_base/\"" \
 grep -Fq "cp \"\$top/Provenance.md\" \"\$package_dir/\"" \
   "$top/util/release-dist"
 grep -Fq "source_name=\"grenadine-\$version-src\"" \
+  "$top/util/release-dist"
+grep -Fq "cp \"\$top/util/build.clj\" \"\$source_dir/util/\"" \
+  "$top/util/release-dist"
+grep -Fq "cp \"\$top/deps.edn\" \"\$source_dir/\"" \
   "$top/util/release-dist"
 grep -Fq "\`make src\`" "$top/Provenance.md"
 grep -Fq "\`make patch\`" "$top/Provenance.md"

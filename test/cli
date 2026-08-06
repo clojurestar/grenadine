@@ -4,7 +4,9 @@ set -euo pipefail
 
 grenadine=${GRENADINE:?GRENADINE is required}
 top=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
-version=$(< "$top/VERSION")
+version=$(sed -n \
+  's/^GRENADINE-VERSION := \([0-9][0-9.]*\)$/\1/p' \
+  "$top/Makefile")
 version_pattern=${version//./\\.}
 temporary=$(mktemp -d)
 trap 'rm -rf "$temporary"' EXIT

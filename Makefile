@@ -3,7 +3,7 @@ M := .cache/makes
 $(shell [ -d '$M' ] || git clone -q $R '$M')
 
 MAKES_LOCAL_DIR ?= $(CURDIR)/.cache/local
-GLOAT-VERSION ?= 0.1.68
+GRENADINE-VERSION := 0.1.5
 ifdef GLOAT_DIR
 GLOAT-DIR := $(GLOAT_DIR)
 endif
@@ -17,10 +17,10 @@ JOLT_SOURCE_DIR ?= $(abspath $(CURDIR)/../jolt)
 
 include $M/init.mk
 include $M/clojure.mk
-include $M/lein.mk
 include $M/babashka.mk
 include $M/glojure.mk
 include $M/gloat.mk
+include $M/gobb.mk
 include $M/jolt.mk
 include $M/let-go.mk
 include $M/gh.mk
@@ -30,7 +30,6 @@ include $M/yq.mk
 include $M/clean.mk
 include $M/shell.mk
 
-VERSION-FILE := $(CURDIR)/VERSION
 GRENADINE := $(CURDIR)/bin/grenadine
 SOURCE-STAGE := $(CURDIR)/.cache/source-stage
 SOURCE-STAGE-STAMP := $(SOURCE-STAGE)/.stamp
@@ -45,7 +44,10 @@ SOURCE-MANIFEST := $(CURDIR)/patch/sources.yaml
 PREFIX ?= $(if $(filter 0,$(shell id -u)),/usr/local,$(HOME)/.local)
 GRENADINE-SOURCES := $(wildcard src/grenadine/*.clj src/grenadine/*.cljc src/grenadine/host/*.clj)
 
-.PHONY: src patch src-check src-clean
+.PHONY: src patch src-check src-clean version
+
+version:
+	@echo '$(GRENADINE-VERSION)'
 
 src: $(YQ) $(SOURCE-PATCHES) $(SOURCE-MANIFEST)
 	$Q YQ='$(YQ)' FORCE='$(FORCE)' '$(SOURCE-PATCHES)' src '$(CURDIR)' '$(YQ)'
@@ -61,9 +63,10 @@ src-clean: $(YQ) $(SOURCE-PATCHES) $(SOURCE-MANIFEST)
 
 default:: build
 
-$(SOURCE-STAGE-STAMP): src $(GRENADINE-SOURCES) $(VERSION-FILE) $(STAGE-SOURCES)
+$(SOURCE-STAGE-STAMP): src $(GRENADINE-SOURCES) Makefile $(STAGE-SOURCES)
 	@$(ECHO) "* Staging Grenadine sources"
-	$Q '$(STAGE-SOURCES)' '$(CURDIR)' '$(SOURCE-STAGE)'
+	$Q '$(STAGE-SOURCES)' \
+	  '$(CURDIR)' '$(SOURCE-STAGE)' '$(GRENADINE-VERSION)'
 	$Q touch '$@'
 	@$(ECHO)
 
@@ -81,11 +84,21 @@ $(GRENADINE): $(SOURCE-STAGE-STAMP) $(GLOAT)
 
 build: $(GRENADINE)
 
-jar: src $(LEIN) project.clj
-	lein jar
+jar: src $(CLOJURE) util/build.clj deps.edn Makefile
+	GRENADINE_VERSION='$(GRENADINE-VERSION)' \
+	  $(CLOJURE) -T:build jar
 
 test-jar: jar
-	test/jar 'target/grenadine-$(shell cat $(VERSION-FILE)).jar'
+	test/jar 'target/grenadine-$(GRENADINE-VERSION).jar'
+
+deploy-clojars: jar
+	@$(if $(filter command line,$(origin VERSION)),,\
+	  $(error VERSION is required on the command line))
+	@$(if $(filter $(GRENADINE-VERSION),$(VERSION)),,\
+	  $(error VERSION=$(VERSION) does not match GRENADINE-VERSION=$(GRENADINE-VERSION)))
+	$(CLOJURE) -X:deploy \
+	  :artifact '"target/grenadine-$(GRENADINE-VERSION).jar"' \
+	  :sign-releases? false
 
 install: $(GRENADINE)
 	$Q install -d '$(DESTDIR)$(PREFIX)/bin'
@@ -154,7 +167,8 @@ release-dist: src-check $(SOURCE-STAGE-STAMP) $(GLOAT)
 	  $(error VERSION is required on the command line))
 	$Q '$(RELEASE-DIST)' \
 	  '$(VERSION)' '$(GLOAT)' '$(SOURCE-STAGE)' \
-	  '$(CURDIR)' '$(DIST)' '$(RELEASE-BUILD)'
+	  '$(CURDIR)' '$(DIST)' '$(RELEASE-BUILD)' \
+	  '$(GRENADINE-VERSION)'
 
 release-homebrew:
 	@$(if $(filter command line,$(origin VERSION)),,\
