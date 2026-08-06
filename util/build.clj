@@ -5,9 +5,7 @@
 
 (def lib 'cc.clojure/grenadine)
 (def class-dir "target/classes")
-(def basis
-  {:libs
-   {'org.clojure/clojure {:mvn/version "1.12.0"}}})
+(def basis {:libs {}})
 
 (def resources
   [["License" "META-INF/LICENSE"]

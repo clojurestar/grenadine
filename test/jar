@@ -11,6 +11,8 @@ jar=${1:?usage: test/jar JAR}
 
 listing=$(unzip -Z1 "$jar")
 for entry in \
+  clojurestar/deps.cljc \
+  glojure/deps.clj \
   grenadine/core.cljc \
   grenadine/expander.cljc \
   META-INF/LICENSE \
@@ -33,6 +35,10 @@ pom=$(unzip -p "$jar" META-INF/maven/cc.clojure/grenadine/pom.xml)
 [[ $pom == "$(< "$top/pom.xml")" ]]
 grep -Fq '<name>Eclipse Public License 1.0</name>' <<< "$pom"
 grep -Fq '<url>https://opensource.org/license/epl-1-0</url>' <<< "$pom"
+if grep -Fq '<artifactId>clojure</artifactId>' <<< "$pom"; then
+  echo 'test/jar: unexpected Clojure runtime dependency' >&2
+  exit 1
+fi
 
 jar_epl=$(unzip -p \
   "$jar" META-INF/LICENSE)

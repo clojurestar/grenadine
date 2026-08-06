@@ -1,8 +1,9 @@
 # Core API reference
 
-The supported portable API is exposed by `grenadine.core`. Lower-level
-namespaces implement it and should not be required for ordinary use. Host
-constructors such as `grenadine.host.jvm/host` provide platform effects.
+The supported portable API is exposed by `grenadine.core`.
+Lower-level namespaces implement it and should not be required for ordinary
+use.
+Embedding dialects and tools supply a host map providing platform effects.
 
 ## High-level operations
 
@@ -13,13 +14,14 @@ constructors such as `grenadine.host.jvm/host` provide platform effects.
 ```
 
 Resolves Maven, Git, and local coordinates and returns tools.deps-compatible
-`:libs`, `:classpath`, and `:classpath-roots` keys. `:resolve-args` accepts
+`:libs`, `:classpath`, and `:classpath-roots` keys.
+`:resolve-args` accepts
 `:extra-deps`, `:override-deps`, and `:default-deps`; `:classpath-args` accepts
-`:extra-paths`, `:replace-paths`, and `:classpath-overrides`. Grenadine adds
-namespaced lock, procurement, warning, and source-root details. Unqualified
-Maven names, `artifact$classifier` names, and Maven version ranges are
-canonicalized before graph expansion; returned bases and locks use concrete
-versions.
+`:extra-paths`, `:replace-paths`, and `:classpath-overrides`.
+Grenadine adds namespaced lock, procurement, warning, and source-root details.
+Unqualified Maven names, `artifact$classifier` names, and Maven version ranges
+are canonicalized before graph expansion; returned bases and locks use
+concrete versions.
 
 ### `expand-deps`
 
@@ -30,13 +32,16 @@ versions.
 Runs portable tools.deps-style tree expansion for arbitrary coordinate types.
 The required `:coord-id`, `:coord-deps`, and `:compare-versions` functions
 identify a coordinate, return its child dependency entries, and order two
-coordinates for the same library. `:known-coordinate?` and `:base-lib` may
-customize validation and exclusion matching.
+coordinates for the same library.
+`:known-coordinate?` and `:base-lib` may customize validation and exclusion
+matching.
 
 `:override-deps` replaces coordinates at every occurrence, `:default-deps`
 fills missing coordinates, and `:trace? true` includes the traversal log and
-version map. The result contains selected `:libs`, stable first-inclusion
-`:order`, structured `:warnings`, and optional `:trace`. `:on-warning` receives
+version map.
+The result contains selected `:libs`, stable first-inclusion
+`:order`, structured `:warnings`, and optional `:trace`.
+`:on-warning` receives
 each warning as it occurs.
 
 ### `install!`
@@ -87,9 +92,10 @@ Artifact or extraction failures throw `ExceptionInfo` with type
 (effective-pom coords opts) ;=> effective-model
 ```
 
-Builds one effective POM. `coords` is a map containing `:group`, `:artifact`,
-and `:version`. Supply either `:fetch-pom` or repository options including a
-host. The returned model contains `:coords`, `:packaging`, `:properties`,
+Builds one effective POM.
+`coords` is a map containing `:group`, `:artifact`, and `:version`.
+Supply either `:fetch-pom` or repository options including a host.
+The returned model contains `:coords`, `:packaging`, `:properties`,
 `:dep-management`, and `:deps`.
 
 ### `resolve-graph`
@@ -98,8 +104,9 @@ host. The returned model contains `:coords`, `:packaging`, `:properties`,
 (resolve-graph deps opts) ;=> resolution
 ```
 
-Resolves and mediates without installing. Supply `:pom-fn`, `:fetch-pom`, or a
-repository-backed host. The result contains `:selected`, `:graph`, `:omitted`,
+Resolves and mediates without installing.
+Supply `:pom-fn`, `:fetch-pom`, or a repository-backed host.
+The result contains `:selected`, `:graph`, `:omitted`,
 `:warnings`, and `:occurrences`.
 
 ## Model and lock operations
@@ -119,7 +126,8 @@ or interpolation.
 (interpolate text properties) ;=> string
 ```
 
-Interpolates Maven-style `${property}` references. Property cycles are
+Interpolates Maven-style `${property}` references.
+Property cycles are
 reported as structured exceptions.
 
 ### `emit-lock`
@@ -129,9 +137,11 @@ reported as structured exceptions.
 ```
 
 The low-level Maven graph form produces a stable version 1 lock for backward
-compatibility. `calc-basis` and `install!` emit version 2 locks containing all
-selected Maven, Git, and local libraries. `:repos` controls the repository
-list, and `:integrity` may supply GAV-keyed SHA-256 and size values.
+compatibility.
+`calc-basis` and `install!` emit version 2 locks containing all
+selected Maven, Git, and local libraries.
+`:repos` controls the repository list, and `:integrity` may supply GAV-keyed
+SHA-256 and size values.
 
 ### `fetch-lock!`
 
@@ -139,7 +149,8 @@ list, and `:integrity` may supply GAV-keyed SHA-256 and size values.
 (fetch-lock! lock opts) ;=> fetch-result
 ```
 
-Installs every lock artifact. Returns `:lock`, `:fetched`, `:cached`, `:failed`,
+Installs every lock artifact.
+Returns `:lock`, `:fetched`, `:cached`, `:failed`,
 and `:warnings`; this lower-level function reports failures as data.
 
 ### `lock->classpath`
@@ -150,7 +161,8 @@ and `:warnings`; this lower-level function reports failures as data.
 ```
 
 Returns Maven artifact, Git checkout, and local coordinate paths without
-touching the filesystem. Version 1 Maven locks remain supported.
+touching the filesystem.
+Version 1 Maven locks remain supported.
 
 ### `prepare-source-roots!`
 
@@ -158,12 +170,14 @@ touching the filesystem. Version 1 Maven locks remain supported.
 (prepare-source-roots! lock opts) ;=> {:roots [...] :failed [...]}
 ```
 
-Extracts installed JARs into digest-keyed directories. The host is responsible
+Extracts installed JARs into digest-keyed directories.
+The host is responsible
 for safe and atomic archive extraction.
 
 ## Custom host contract
 
-A host is a map of effect functions. Repository-backed installation uses:
+A host is a map of effect functions.
+Repository-backed installation uses:
 
 | Key | Contract |
 | --- | --- |

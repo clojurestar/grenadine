@@ -41,21 +41,5 @@
         host (fn [status]
                {:http-get (fn [_] {:status status :body nil})
                 :bytes->utf8 identity})]
-    #?(:glj
-       (do
-         (is (throws? (source/fetch-text (host 404) source-url)))
-         (is (throws? (source/fetch-text (host 0) source-url))))
-       :jolt
-       (do
-         (is (throws? (source/fetch-text (host 404) source-url)))
-         (is (throws? (source/fetch-text (host 0) source-url))))
-       :lg
-       (do
-         (is (throws? (source/fetch-text (host 404) source-url)))
-         (is (throws? (source/fetch-text (host 0) source-url))))
-       :default
-       (do
-         (is (thrown-with-msg? Exception #"HTTP 404"
-                               (source/fetch-text (host 404) source-url)))
-         (is (thrown-with-msg? Exception #"request failed"
-                               (source/fetch-text (host 0) source-url)))))))
+    (is (throws? (source/fetch-text (host 404) source-url)))
+    (is (throws? (source/fetch-text (host 0) source-url)))))

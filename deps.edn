@@ -10,9 +10,6 @@
    {slipset/deps-deploy {:mvn/version "0.2.5"}}
    :exec-fn deps-deploy.deps-deploy/deploy
    :exec-args {:installer :remote}}
-  :test
-  {:extra-paths ["test"]
-   :main-opts ["-m" "grenadine.test-runner"]}
   :oracle
   {:extra-paths ["test"]
    :extra-deps

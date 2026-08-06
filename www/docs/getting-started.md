@@ -1,37 +1,27 @@
 # Getting started
 
-Grenadine can be used as a pure Clojure library or as a standalone native
-command. The library is intended for Clojure dialects and tools that need
-Maven, Git, and local resolution. The command prepares dependencies without
-starting a JVM.
+Grenadine supplies portable Clojure source and a standalone native command.
+The source is intended for Clojure dialects and tools that need Maven, Git, and
+local resolution.
+The command prepares dependencies without starting a JVM.
 
-## Add the library
+## Use the portable facade
 
-Grenadine is published to Clojars as `cc.clojure/grenadine`:
-
-```clojure
-{:deps {cc.clojure/grenadine {:mvn/version "0.1.5"}}}
-```
-
-The smallest JVM-hosted installation looks like this:
+Glojure and Jolt embed their Grenadine integration in the dialect binary.
+Portable programs use the same facade in either runtime:
 
 ```clojure
-(require '[grenadine.core :as grenadine]
-         '[grenadine.host.jvm :as jvm])
+(require '[clojurestar.deps :as deps])
 
-(def result
-  (grenadine/install!
-   '{org.clojure/data.csv {:mvn/version "1.1.0"}}
-   {:host (jvm/host)
-    :mediation :tools-deps}))
-
-(select-keys result [:classpath :fetched :cached :warnings])
+(deps/add-deps
+ '{:deps
+   {dev.weavejester/medley {:mvn/version "1.10.0"}}})
 ```
 
-`install!` resolves the transitive graph, downloads missing POMs and JARs,
-verifies available checksums, and returns data describing the installation.
-It does not mutate the JVM classpath. Dialect integrations decide how the
-returned classpath or extracted source roots become loadable.
+Use `glojure.deps` or `jolt.deps` for backend-specific operations and result
+data.
+Dialect and tool authors can obtain the vendorable source artifact as
+`cc.clojure/grenadine:0.1.5` or use a release source archive.
 
 See the [Library guide](library-guide.md) for the resolution pipeline and the
 [Core API reference](api-reference.md) for every public operation.
@@ -63,7 +53,8 @@ grenadine --repository=my-m2 --add \
   https://github.com/seancorfield/honeysql/blob/develop/deps.edn
 ```
 
-You can also add coordinates directly. A version is optional; without one,
+You can also add coordinates directly.
+A version is optional; without one,
 Grenadine installs the latest Maven release:
 
 ```sh
@@ -88,9 +79,9 @@ Resolve and inspect a complete dependency graph without installing any JARs:
 grenadine --expand org.yamlscript/ys.v0
 ```
 
-Required POMs are reused from or cached in the selected local repository. The
-result is a sorted list of selected coordinates. Choose another conflict
-mediator, or list the available strategies, with:
+Required POMs are reused from or cached in the selected local repository.
+The result is a sorted list of selected coordinates.
+Choose another conflict mediator, or list the available strategies, with:
 
 ```sh
 grenadine -M newest --expand org.yamlscript/ys.v0

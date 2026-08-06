@@ -154,6 +154,27 @@
          :when (not= (compare expected 0) (compare actual 0))]
      {:left left :right right :expected expected :actual actual})))
 
+(defn- local-basis-failure
+  []
+  (let [runtime (jvm/host)
+        root ((:canonical-path runtime) "test/fixtures/local-lib")
+        result
+        (grenadine/calc-basis
+         {:deps {'example/local {:local/root "test/fixtures/local-lib"}}}
+         {:host runtime :base-dir "."})
+        expected
+        {:lib {:local/root root
+               :deps/root root
+               :deps/manifest :deps
+               :paths [(str root "/src")]
+               :parents #{[]}}
+         :classpath-roots [(str root "/src")]}
+        actual
+        {:lib (get-in result [:libs 'example/local])
+         :classpath-roots (:classpath-roots result)}]
+    (when-not (= expected actual)
+      {:expected expected :actual actual})))
+
 (defn -main
   [& _args]
   (try
@@ -177,6 +198,7 @@
               :match? (= expected actual)}))
          corpus)
         failures (remove :match? results)
+        local-basis-failure (local-basis-failure)
         version-failures (version-failures)
         fuzz (fuzz-results corpus local-repo)
         fuzz-failures (remove :match? (:results fuzz))]
@@ -188,6 +210,7 @@
     (println "Differential cases:" (count results)
              "matched:" (- (count results) (count failures))
              "failed:" (count failures))
+    (println "Local basis:" (if local-basis-failure "failed" "passed"))
     (println "Version comparisons:" (* (count version-corpus)
                                         (count version-corpus))
              "failed:" (count version-failures))
@@ -201,10 +224,15 @@
     (doseq [failure version-failures]
       (binding [*out* *err*]
         (println "ComparableVersion mismatch:" (pr-str failure))))
-    (when (or (seq failures) (seq version-failures) (seq fuzz-failures))
+    (when local-basis-failure
+      (binding [*out* *err*]
+        (println "Local basis mismatch:" (pr-str local-basis-failure))))
+    (when (or (seq failures) local-basis-failure
+              (seq version-failures) (seq fuzz-failures))
       (throw
        (ex-info "Grenadine JVM oracle mismatch"
                 {:dependency-failures (mapv :name failures)
+                 :local-basis-failure local-basis-failure
                  :version-failures version-failures
                  :fuzz-failures (mapv :case fuzz-failures)}))))
     (finally

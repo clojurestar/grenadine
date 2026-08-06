@@ -2,8 +2,8 @@
 
 Grenadine is a portable dependency resolver that follows and adapts the
 dependency model implemented by the Clojure `tools.deps` family.
-This document records the exact upstream sources used to generate Grenadine
-0.1.6 and identifies the committed portability patches and derived modules.
+This document records the upstream sources used to generate Grenadine and
+identifies the committed portability patches and derived modules.
 
 ## Audited upstream revisions
 

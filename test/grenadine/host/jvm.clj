@@ -1,5 +1,5 @@
 (ns grenadine.host.jvm
-  "JVM host implementation for Grenadine repository operations."
+  "JVM host used only by Grenadine's differential oracle."
   (:require [clojure.edn :as edn])
   (:import [java.io ByteArrayOutputStream File FileInputStream]
            [java.net HttpURLConnection URL]
@@ -52,10 +52,7 @@
      (into-array StandardCopyOption
                  [StandardCopyOption/ATOMIC_MOVE
                   StandardCopyOption/REPLACE_EXISTING]))
-    ;; Babashka does not expose AtomicMoveNotSupportedException as a resolvable
-    ;; class, but it does support Files/move and Throwable. Retrying without the
-    ;; atomic option is correct for the JVM exception and keeps this host usable
-    ;; from bb's native image.
+    ;; Retry without the atomic option when the filesystem does not support it.
     (catch Throwable _
       (Files/move
        (path from)
