@@ -1,0 +1,191 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+mode=${1:?usage: source-patches MODE TOP YQ}
+top=${2:?usage: source-patches MODE TOP YQ}
+yq=${3:?usage: source-patches MODE TOP YQ}
+manifest="$top/patch/sources.yaml"
+cache="$top/.cache/upstream"
+temporary=
+trap '[[ -z $temporary ]] || rm -rf "$temporary"' EXIT
+
+[[ -x $yq ]] || {
+  echo "source-patches: yq is not executable: $yq" >&2
+  exit 1
+}
+[[ -f $manifest ]] || {
+  echo "source-patches: missing manifest: $manifest" >&2
+  exit 1
+}
+
+rows() {
+  "$yq" -r '.sources[] | [.project, .repository, .revision, .source, .target, .sha256] | @tsv' "$manifest"
+}
+
+projects() {
+  "$yq" -r '.sources[].project' "$manifest" | sort -u
+}
+
+field_for_project() {
+  local project=$1 field=$2
+  "$yq" -r ".sources[] | select(.project == \"$project\") | .$field" "$manifest" |
+    sort -u
+}
+
+ensure_upstream() {
+  local project=$1 repository revision checkout
+  repository=$(field_for_project "$project" repository)
+  revision=$(field_for_project "$project" revision)
+  [[ $(wc -l <<< "$repository") == 1 && $(wc -l <<< "$revision") == 1 ]] || {
+    echo "source-patches: inconsistent upstream data for $project" >&2
+    exit 1
+  }
+  checkout="$cache/$project"
+  if [[ ! -d $checkout/.git ]]; then
+    mkdir -p "$cache"
+    git clone -q --filter=blob:none "$repository" "$checkout"
+  fi
+  [[ $(git -C "$checkout" remote get-url origin) == "$repository" ]] || {
+    echo "source-patches: repository mismatch for $project" >&2
+    exit 1
+  }
+  if ! git -C "$checkout" cat-file -e "$revision^{commit}" 2>/dev/null; then
+    git -C "$checkout" fetch -q origin "$revision"
+  fi
+  [[ $(git -C "$checkout" rev-parse "$revision^{commit}") == "$revision" ]] || {
+    echo "source-patches: revision mismatch for $project" >&2
+    exit 1
+  }
+}
+
+prepare_base() {
+  local destination=$1 project repository revision source target expected actual
+  while IFS=$'\t' read -r project repository revision source target expected; do
+    ensure_upstream "$project"
+    mkdir -p "$destination/${target%/*}"
+    git -C "$cache/$project" show "$revision:$source" > "$destination/$target"
+    actual=$(sha256sum "$destination/$target")
+    actual=${actual%% *}
+    [[ $actual == "$expected" ]] || {
+      echo "source-patches: checksum mismatch for $project:$source" >&2
+      echo "  expected: $expected" >&2
+      echo "  actual:   $actual" >&2
+      exit 1
+    }
+  done < <(rows)
+}
+
+prepare_expected() {
+  local destination=$1 project patch_file
+  prepare_base "$destination"
+  while IFS= read -r project; do
+    patch_file="$top/patch/$project.patch"
+    [[ -s $patch_file ]] || {
+      echo "source-patches: missing patch: $patch_file" >&2
+      exit 1
+    }
+    patch --quiet --batch -p1 -d "$destination" < "$patch_file"
+  done < <(projects)
+}
+
+install_sources() {
+  local force=${FORCE:-0} expected target
+  local -a changed=()
+  temporary=$(mktemp -d)
+  expected="$temporary/expected"
+  prepare_expected "$expected"
+  while IFS=$'\t' read -r _project _repository _revision _source target _checksum; do
+    if [[ -e $top/$target ]] && ! cmp -s "$expected/$target" "$top/$target"; then
+      changed+=("$target")
+    fi
+  done < <(rows)
+  if (( ${#changed[@]} )) && [[ $force != 1 ]]; then
+    echo 'source-patches: refusing to overwrite edited generated sources:' >&2
+    printf '  %s\n' "${changed[@]}" >&2
+    echo 'Run make patch to save the edits, or make src FORCE=1 to discard them.' >&2
+    exit 1
+  fi
+  while IFS=$'\t' read -r _project _repository _revision _source target _checksum; do
+    mkdir -p "$top/${target%/*}"
+    cp "$expected/$target" "$top/$target"
+  done < <(rows)
+}
+
+write_patches() {
+  local base verify project repository revision source target output final
+  temporary=$(mktemp -d)
+  base="$temporary/base"
+  prepare_base "$base"
+  while IFS= read -r project; do
+    output="$temporary/$project.patch"
+    : > "$output"
+    while IFS=$'\t' read -r row_project repository revision source target _checksum; do
+      [[ $row_project == "$project" ]] || continue
+      [[ -f $top/$target ]] || {
+        echo "source-patches: missing generated source: $target" >&2
+        exit 1
+      }
+      diff -U0 --label "a/$target" --label "b/$target" \
+        "$base/$target" "$top/$target" >> "$output" || {
+          status=$?
+          (( status == 1 )) || exit "$status"
+        }
+    done < <(rows)
+    [[ -s $output ]] || {
+      echo "source-patches: no differences found for $project" >&2
+      exit 1
+    }
+  done < <(projects)
+  verify="$temporary/verify"
+  cp -R "$base" "$verify"
+  while IFS= read -r project; do
+    patch --quiet --batch -p1 -d "$verify" < "$temporary/$project.patch"
+  done < <(projects)
+  while IFS=$'\t' read -r project repository revision source target _checksum; do
+    cmp -s "$verify/$target" "$top/$target" || {
+      echo "source-patches: generated patch does not reproduce $target" >&2
+      exit 1
+    }
+  done < <(rows)
+  while IFS= read -r project; do
+    final="$top/patch/$project.patch"
+    mv "$temporary/$project.patch" "$final"
+  done < <(projects)
+  echo 'Generated source patches and verified exact reconstruction'
+}
+
+check_sources() {
+  local expected project repository revision source target _checksum failed=0
+  temporary=$(mktemp -d)
+  expected="$temporary/expected"
+  prepare_expected "$expected"
+  while IFS=$'\t' read -r project repository revision source target _checksum; do
+    if [[ ! -f $top/$target ]]; then
+      echo "source-patches: missing generated source: $target" >&2
+      failed=1
+    elif ! cmp -s "$expected/$target" "$top/$target"; then
+      echo "source-patches: generated source differs from patch: $target" >&2
+      failed=1
+    fi
+  done < <(rows)
+  (( failed == 0 ))
+}
+
+clean_sources() {
+  local project repository revision source target _checksum
+  while IFS=$'\t' read -r project repository revision source target _checksum; do
+    rm -f "$top/$target"
+  done < <(rows)
+}
+
+case $mode in
+  src) install_sources ;;
+  patch) write_patches ;;
+  check) check_sources ;;
+  clean) clean_sources ;;
+  *)
+    echo "source-patches: unknown mode: $mode" >&2
+    exit 1
+    ;;
+esac

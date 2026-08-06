@@ -45,6 +45,7 @@ nav:
     - Installation: installation.md
     - CLI Reference: cli-reference.md
   - Troubleshooting: troubleshooting.md
+  - Provenance and License: provenance.md
 
 markdown_extensions:
   - admonition

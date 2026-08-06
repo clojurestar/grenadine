@@ -75,7 +75,7 @@ class $class < Formula
   desc "Portable Maven dependency resolver for Clojure dialects"
   homepage "https://clojurestar.github.io/grenadine/"
   version "$version"
-  license "MIT"
+  license "EPL-1.0"
 
   on_linux do
     if Hardware::CPU.arm?

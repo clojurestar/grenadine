@@ -8,9 +8,10 @@ See the [Grenadine website](https://clojurestar.github.io/grenadine/) for the
 published documentation and install helpers.
 
 The resolver core runs unchanged on JVM Clojure, Babashka, Glojure, Jolt, and
-let-go. It resolves Maven, Git, and local coordinates, builds tools.deps-shaped
-bases, supports newest / Maven-nearest / tools.deps mediation, emits
-deterministic locks, and prepares source roots for non-JVM runtimes.
+let-go.
+It resolves Maven, Git, and local coordinates, builds tools.deps-shaped bases,
+supports newest / Maven-nearest / tools.deps mediation, emits deterministic
+locks, and prepares source roots for non-JVM runtimes.
 
 
 ## Installation
@@ -43,9 +44,10 @@ unchanged across Clojure dialects:
 (require '[medley.core :as medley])
 ```
 
-`clojurestar.deps/add-deps` always returns `nil`. Use `babashka.deps`,
-`glojure.deps`, `jolt.deps`, `let-go.deps`, or `grenadine.jvm` when code needs
-backend-specific options, operations, or result data.
+`clojurestar.deps/add-deps` always returns `nil`.
+Use `babashka.deps`, `glojure.deps`, `jolt.deps`, `let-go.deps`, or
+`grenadine.jvm` when code needs backend-specific options, operations, or result
+data.
 
 
 ## Command line
@@ -70,8 +72,8 @@ grenadine --help
 grenadine --version
 ```
 
-HTTP and HTTPS URLs are accepted directly. GitHub `blob` links are
-automatically fetched as raw content:
+HTTP and HTTPS URLs are accepted directly.
+GitHub `blob` links are automatically fetched as raw content:
 
 ```sh
 grenadine --repository=my-m2 --add \
@@ -79,27 +81,30 @@ grenadine --repository=my-m2 --add \
 ```
 
 By default, Grenadine prints each dependency immediately after installing it,
-then reports installed, already-present, and total counts. Already-present
-dependencies are not listed individually. Use `-q` or `--quiet` to suppress
-non-error output. The repository used by `-R` or `--repository` takes
-precedence over `:mvn/local-repo` in the deps source,
-`GRENADINE_LOCAL_REPOSITORY`, and the default
-`$HOME/.m2/repository`, in that order.
+then reports installed, already-present, and total counts.
+Already-present dependencies are not listed individually.
+Use `-q` or `--quiet` to suppress non-error output.
+The repository used by `-R` or `--repository` takes precedence over
+`:mvn/local-repo` in the deps source, `GRENADINE_LOCAL_REPOSITORY`, and the
+default `$HOME/.m2/repository`, in that order.
 
-Deps sources may contain Maven, Git, and local coordinates. Git coordinates
-use a tools.gitlibs-compatible cache selected by `-G/--gitlibs`, top-level
-`:gitlibs/dir`, `GRENADINE_GITLIBS`, `GITLIBS`, or `$HOME/.gitlibs`, in that
-order. Git is only required when a Git coordinate is encountered. Unqualified
-Maven names mean `name/name`, classifiers use
+Deps sources may contain Maven, Git, and local coordinates.
+Git coordinates use a tools.gitlibs-compatible cache selected by `-G/--gitlibs`,
+top-level `:gitlibs/dir`, `GRENADINE_GITLIBS`, `GITLIBS`, or `$HOME/.gitlibs`,
+in that order.
+Git is only required when a Git coordinate is encountered.
+Unqualified Maven names mean `name/name`, classifiers use
 `group/artifact$classifier`, and Maven version ranges are resolved to concrete
-versions before expansion. Relative `:local/root` values require a local deps
-source; an HTTP source must use an absolute root.
+versions before expansion.
+Relative `:local/root` values require a local deps source; an HTTP source must
+use an absolute root.
 
 `--add`, `--list`, `--delete`, `--remove`, and `--expand` accept mixed lists of
-`group/artifact [version]` requests and local or remote deps sources. `--delete`
-removes only explicit coordinates; `--remove` expands and removes complete
-dependency closures. `--expand` prints the selected graph without installing
-JARs. Use `-M` or `--mediator` to select `newest`, `nearest`, or `tools-deps`.
+`group/artifact [version]` requests and local or remote deps sources.
+`--delete` removes only explicit coordinates; `--remove` expands and removes
+complete dependency closures.
+`--expand` prints the selected graph without installing JARs.
+Use `-M` or `--mediator` to select `newest`, `nearest`, or `tools-deps`.
 The default is `tools-deps`; `--mediators` describes all three.
 
 On Linux and macOS, install with Homebrew:
@@ -146,7 +151,8 @@ make install
 ```
 
 This installs `grenadine` under `$HOME/.local/bin` for a regular user or
-`/usr/local/bin` when run as root. Set `PREFIX` to choose another location:
+`/usr/local/bin` when run as root.
+Set `PREFIX` to choose another location:
 
 ```sh
 make install PREFIX=/opt/grenadine
@@ -155,56 +161,87 @@ make install PREFIX=/opt/grenadine
 
 ## Configuration
 
-Grenadine uses the standard Maven local repository at
-`$HOME/.m2/repository`. Set `GRENADINE_LOCAL_REPOSITORY` to use another
-repository:
+Grenadine uses the standard Maven local repository at `$HOME/.m2/repository`.
+Set `GRENADINE_LOCAL_REPOSITORY` to use another repository:
 
 ```sh
 export GRENADINE_LOCAL_REPOSITORY=/path/to/maven/repository
 ```
 
 An explicit `:local-repo` option takes precedence over the environment.
-Artifacts are tried against each configured remote repository in order when
-the lock's preferred repository does not contain them. Non-JVM hosts can pass
-`:source-libs` as a set of library symbols to extract and expose only selected
-source roots while still installing the full dependency graph.
+Artifacts are tried against each configured remote repository in order when the
+lock's preferred repository does not contain them.
+Non-JVM hosts can pass `:source-libs` as a set of library symbols to extract and
+expose only selected source roots while still installing the full dependency
+graph.
 
 
 ## Development
 
 ```sh
+make src
 make build
 make test
 make test-all
 make oracle
 ```
 
-`test-all` runs the same portable suite on all five runtimes. `oracle` compares
-Grenadine bases with JVM tools.deps and version ordering with Maven
-`ComparableVersion`. Its deterministic generated cases are configured with
-`GRENADINE_ORACLE_SEED` and `GRENADINE_ORACLE_CASES`.
+`make src` downloads the revisions pinned in `patch/sources.yaml`, verifies
+their source checksums, applies the unified patches in `patch/`, and assembles
+the complete portable tree under `src/`.
+Upstream-backed generated files are not committed.
+After editing one of them, run `make patch` to regenerate the reviewable project
+patches; `make src-check` verifies an exact round trip.
+
+`test-all` runs the same portable suite on all five runtimes.
+`oracle` compares Grenadine bases with JVM tools.deps and version ordering with
+Maven `ComparableVersion`.
+Its deterministic generated cases are configured with `GRENADINE_ORACLE_SEED`
+and `GRENADINE_ORACLE_CASES`.
 
 `make release VERSION=X.Y.Z` publishes the Clojars artifact, native archives,
-website, and Homebrew formulas. To publish or retry only the Homebrew tap after
-the GitHub release assets exist:
+website, and Homebrew formulas.
+To publish or retry only the Homebrew tap after the GitHub release assets exist:
 
 ```sh
 make release-homebrew VERSION=X.Y.Z
 ```
 
-The updater pushes to `clojurestar/homebrew-grenadine` by default. Set
-`GRENADINE_HOMEBREW_URL` to use another tap remote, or set
+The updater pushes to `clojurestar/homebrew-grenadine` by default.
+Set `GRENADINE_HOMEBREW_URL` to use another tap remote, or set
 `GRENADINE_HOMEBREW_PUSH=0` to prepare and inspect the tap checkout without
 pushing it.
 
-The Gloat-compiled command includes its Glojure effect host from this
-repository and builds against released Glojure. JVM Clojure, Babashka,
-Glojure, Jolt, and let-go each expose a dynamic dependency backend; the
-`clojurestar.deps` namespace is the intentionally small common API over them.
+The Gloat-compiled command includes its Glojure effect host from this repository
+and builds against released Glojure.
+JVM Clojure, Babashka, Glojure, Jolt, and let-go each expose a dynamic
+dependency backend; the `clojurestar.deps` namespace is the intentionally small
+common API over them.
+
+
+## Acknowledgements and provenance
+
+Grenadine's portable dependency expansion, coordinate handling, basis
+construction, and Git cache are generated from pinned source files in the
+Clojure `tools.deps`, `tools.deps.edn`, and `tools.gitlibs` projects plus
+reviewable portability patches.
+We gratefully credit the Clojure team and contributors who created and maintain
+them, particularly Alex Miller, and the original Clojure copyright holder Rich
+Hickey.
+Grenadine contributor Yogthos improved portable incomparable-version warning
+handling.
+
+Portable Maven version ordering and range parsing adapt Apache Maven code.
+[Provenance.md](Provenance.md) records the exact upstream revisions, source file
+mappings, licenses, and Grenadine-specific changes.
+Each release includes a complete generated source archive; the matching Git tag
+contains everything needed to reproduce it with `make src`.
 
 
 ## Copyright and License
 
 Copyright 2026 - Ingy dot Net
 
-MIT License - See [License](License) file.
+Eclipse Public License 1.0 - See the [License](License) file.
+Apache-derived portions retain their Apache License 2.0 notices; see
+[ThirdPartyNotices.md](ThirdPartyNotices.md).

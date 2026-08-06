@@ -1,3 +1,9 @@
+;   Copyright (c) Rich Hickey. All rights reserved.
+;   Distributed under the Eclipse Public License 1.0.
+;   Git coordinate and cache scenarios adapted from tools.deps v0.31.1642 and
+;   tools.gitlibs v2.6.217. Grenadine adaptations Copyright 2026 Ingy döt Net.
+;   See Provenance.md.
+
 (ns grenadine.coordinate-test
   (:require [clojure.test :refer [deftest is testing]]
             [grenadine.basis :as basis]

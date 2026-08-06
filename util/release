@@ -31,8 +31,18 @@ project_version() {
 
 version_reference_files() {
   local pattern=${1//./\\.}
-  git grep -IlE "(^|[^0-9.])$pattern([^0-9.]|$)" -- . \
-    ':(exclude)Changes' ':(exclude)test/**' || true
+  local file
+  for file in \
+    ReadMe.md \
+    www/docs/getting-started.md \
+    www/docs/installation.md
+  do
+    if grep -Eq "(^|[^0-9.])$pattern([^0-9.]|$)" "$file"; then
+      echo "$file"
+    fi
+  done
+  [[ $(< "$version_file") == "$1" ]] && echo VERSION
+  [[ $(project_version) == "$1" ]] && echo project.clj
 }
 
 release_files() {
@@ -44,12 +54,17 @@ release_files() {
 
 bump_version_references() {
   local current=$1 file
-  while IFS= read -r file; do
-    [[ -n $file ]] || continue
+  for file in \
+    ReadMe.md \
+    www/docs/getting-started.md \
+    www/docs/installation.md
+  do
     OLD_VERSION="$current" NEW_VERSION="$version" perl -pi -e \
       's/(?<![0-9.])\Q$ENV{OLD_VERSION}\E(?![0-9.])/$ENV{NEW_VERSION}/g' \
       "$file"
-  done < <(version_reference_files "$current")
+  done
+  printf '%s\n' "$version" > "$version_file"
+  set_project_version
 }
 
 set_project_version() {
@@ -338,6 +353,11 @@ validate_jar() {
   grep -Fxq grenadine/core.cljc <<< "$listing"
   grep -Fxq META-INF/leiningen/cc.clojure/grenadine/License \
     <<< "$listing"
+  grep -Fxq ThirdPartyNotices.md <<< "$listing"
+  grep -Fxq Provenance.md <<< "$listing"
+  grep -Fxq patch/sources.yaml <<< "$listing"
+  grep -Fxq licenses/Apache-2.0.txt <<< "$listing"
+  grep -Fxq licenses/Apache-Maven-NOTICE.txt <<< "$listing"
 }
 
 publish() {

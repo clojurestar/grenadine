@@ -76,6 +76,7 @@ go_root=$($go_bin env GOROOT)
 go_mod_cache=${go_root%/*}/go/pkg/mod
 license_base="$build_dir/licenses"
 mkdir -p "$license_base/modules"
+cp -R "$top/licenses/." "$license_base/"
 
 cp "$gloat_dir/License" "$license_base/Gloat-MIT.txt"
 cp "$go_root/LICENSE" "$license_base/Go-BSD-3-Clause.txt"
@@ -128,8 +129,18 @@ package_platform() {
   cp "$top/Changes" "$package_dir/"
   cp "$top/License" "$package_dir/"
   cp "$top/ThirdPartyNotices.md" "$package_dir/"
+  cp "$top/Provenance.md" "$package_dir/"
   cp -R "$license_base/." "$package_dir/licenses/"
-
+  for required in \
+    License ThirdPartyNotices.md Provenance.md \
+    licenses/Apache-2.0.txt \
+    licenses/Apache-Maven-NOTICE.txt
+  do
+    [[ -f $package_dir/$required ]] || {
+      echo "release-dist: missing package notice: $required" >&2
+      exit 1
+    }
+  done
   if [[ $platform == windows_* ]]; then
     executable=grenadine.exe
     cp "$build_dir/bin/$platform/$executable" "$package_dir/"
@@ -147,6 +158,23 @@ package_platform() {
 for platform in "${platforms[@]}"; do
   package_platform "$platform"
 done
+
+source_name="grenadine-$version-src"
+source_dir="$build_dir/packages/$source_name"
+mkdir -p "$source_dir/util"
+cp "$top/ReadMe.md" "$source_dir/"
+cp "$top/Changes" "$source_dir/"
+cp "$top/VERSION" "$source_dir/"
+cp "$top/Makefile" "$source_dir/"
+cp "$top/License" "$source_dir/"
+cp "$top/ThirdPartyNotices.md" "$source_dir/"
+cp "$top/Provenance.md" "$source_dir/"
+cp -R "$top/licenses" "$source_dir/"
+cp -R "$top/patch" "$source_dir/"
+cp -R "$top/src" "$source_dir/"
+cp "$top/util/source-patches" "$source_dir/util/"
+tar -czf "$dist_dir/$source_name.tar.gz" \
+  -C "$build_dir/packages" "$source_name"
 
 (
   cd "$dist_dir"

@@ -7,6 +7,11 @@
 /pom.xml
 /www/site/
 /www/venv/
+/src/grenadine/basis.cljc
+/src/grenadine/coordinate.cljc
+/src/grenadine/expander.cljc
+/src/grenadine/gitlibs.cljc
 *.md
 !/ThirdPartyNotices.md
+!/Provenance.md
 !/www/docs/*.md
