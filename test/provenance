@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+top=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+
+cmp "$top/License" "$top/licenses/EPL-1.0.txt"
+cmp "$top/License" "$top/epl-v10.html"
+grep -Fqx 'The MIT License (MIT)' \
+  "$top/licenses/Grenadine-v0.1.5-MIT.txt"
+
+grep -Fqx 'Eclipse Public License - v 1.0' "$top/License"
+grep -Fq ':name "Eclipse Public License 1.0"' "$top/project.clj"
+grep -Fq 'license "EPL-1.0"' "$top/util/brew-update"
+
+for project in tools.deps tools.deps.edn tools.gitlibs; do
+  [[ -s "$top/patch/$project.patch" ]]
+  grep -Fq "project: $project" "$top/patch/sources.yaml"
+done
+
+for generated in basis coordinate expander gitlibs; do
+  path="src/grenadine/$generated.cljc"
+  [[ -f "$top/$path" ]]
+  if git -C "$top" ls-files --error-unmatch "$path" >/dev/null 2>&1; then
+    echo "generated source is tracked: $path" >&2
+    exit 1
+  fi
+done
+
+grep -Fq 'Portable adaptation of clojure.tools.deps at v0.31.1642.' \
+  "$top/src/grenadine/expander.cljc"
+grep -Fq 'Portable adaptation of org.clojure/tools.gitlibs at v2.6.217.' \
+  "$top/src/grenadine/gitlibs.cljc"
+grep -Fq 'canonicalization behavior from tools.deps.edn v0.9.48.' \
+  "$top/src/grenadine/coordinate.cljc"
+grep -Fq 'Portable adaptation of Apache Maven ComparableVersion.java' \
+  "$top/src/grenadine/version.cljc"
+grep -Fq 'Test scenarios adapted from clojure.tools.deps v0.31.1642.' \
+  "$top/test/grenadine/expander_test.cljc"
+grep -Fq 'Version and range scenarios adapted from Apache Maven maven-3.9.16.' \
+  "$top/test/grenadine/version_test.cljc"
+grep -Fq 'Yogthos' "$top/Provenance.md"
+grep -Fq '767e04e8bd3cab958464bb6b699520b7436ef27b' "$top/Provenance.md"
+
+for revision in \
+  a525ff14dd0f37bdc0006ed536d511ae2cd29e5c \
+  e6b074d119c901de7bdcf9da6e065e1291c00e58 \
+  e8732b6b02cc4908524dc73aa8d231e78b78b150 \
+  2bdd9fddda4b155ebf8000e807eb73fd829a51d5
+do
+  grep -Fq "$revision" "$top/Provenance.md"
+done
+
+grep -Fq 'Alex Miller' "$top/ReadMe.md"
+grep -Fq 'Alex Miller' "$top/ThirdPartyNotices.md"
+grep -Fq 'matching Git tag' "$top/ThirdPartyNotices.md"
+
+grep -Fq "cp -R \"\$top/licenses/.\" \"\$license_base/\"" \
+  "$top/util/release-dist"
+grep -Fq "cp \"\$top/Provenance.md\" \"\$package_dir/\"" \
+  "$top/util/release-dist"
+grep -Fq "source_name=\"grenadine-\$version-src\"" \
+  "$top/util/release-dist"
+grep -Fq "\`make src\`" "$top/Provenance.md"
+grep -Fq "\`make patch\`" "$top/Provenance.md"
+
+echo 'provenance and license checks passed'

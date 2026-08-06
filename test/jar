@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+top=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+jar=${1:?usage: test/jar JAR}
+[[ -f $jar ]] || {
+  echo "test/jar: missing JAR: $jar" >&2
+  exit 1
+}
+
+listing=$(unzip -Z1 "$jar")
+for entry in \
+  grenadine/core.cljc \
+  grenadine/expander.cljc \
+  META-INF/leiningen/cc.clojure/grenadine/License \
+  epl-v10.html \
+  ThirdPartyNotices.md \
+  Provenance.md \
+  patch/sources.yaml \
+  patch/tools.deps.patch \
+  patch/tools.deps.edn.patch \
+  patch/tools.gitlibs.patch \
+  licenses/EPL-1.0.txt \
+  licenses/Apache-2.0.txt \
+  licenses/Apache-Maven-NOTICE.txt \
+  licenses/Grenadine-v0.1.5-MIT.txt
+do
+  grep -Fxq "$entry" <<< "$listing"
+done
+
+grep -Fq 'Portable adaptation of clojure.tools.deps at v0.31.1642.' \
+  < <(unzip -p "$jar" grenadine/expander.cljc)
+
+pom=$(unzip -p "$jar" META-INF/maven/cc.clojure/grenadine/pom.xml)
+grep -Fq '<name>Eclipse Public License 1.0</name>' <<< "$pom"
+grep -Fq '<url>https://opensource.org/license/epl-1-0</url>' <<< "$pom"
+
+jar_epl=$(unzip -p "$jar" licenses/EPL-1.0.txt)
+source_epl=$(< "$top/License")
+[[ $jar_epl == "$source_epl" ]]
+[[ $(unzip -p "$jar" epl-v10.html) == "$source_epl" ]]
+
+echo 'JAR license and provenance checks passed'

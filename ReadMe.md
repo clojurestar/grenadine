@@ -173,11 +173,18 @@ source roots while still installing the full dependency graph.
 ## Development
 
 ```sh
+make src
 make build
 make test
 make test-all
 make oracle
 ```
+
+`make src` downloads the revisions pinned in `patch/sources.yaml`, verifies
+their source checksums, applies the unified patches in `patch/`, and assembles
+the complete portable tree under `src/`. Upstream-backed generated files are
+not committed. After editing one of them, run `make patch` to regenerate the
+reviewable project patches; `make src-check` verifies an exact round trip.
 
 `test-all` runs the same portable suite on all five runtimes. `oracle` compares
 Grenadine bases with JVM tools.deps and version ordering with Maven
@@ -203,8 +210,28 @@ Glojure, Jolt, and let-go each expose a dynamic dependency backend; the
 `clojurestar.deps` namespace is the intentionally small common API over them.
 
 
+## Acknowledgements and provenance
+
+Grenadine's portable dependency expansion, coordinate handling, basis
+construction, and Git cache are generated from pinned source files in the
+Clojure `tools.deps`, `tools.deps.edn`, and `tools.gitlibs` projects plus
+reviewable portability patches. We gratefully credit the Clojure team and
+contributors who created and maintain them, particularly Alex Miller, and the
+original Clojure copyright holder Rich Hickey.
+Grenadine contributor Yogthos improved portable incomparable-version warning
+handling.
+
+Portable Maven version ordering and range parsing adapt Apache Maven code.
+[Provenance.md](Provenance.md) records the exact upstream revisions, source
+file mappings, licenses, and Grenadine-specific changes. Each release includes
+a complete generated source archive; the matching Git tag contains everything
+needed to reproduce it with `make src`.
+
+
 ## Copyright and License
 
 Copyright 2026 - Ingy dot Net
 
-MIT License - See [License](License) file.
+Eclipse Public License 1.0 - See the [License](License) file. Apache-derived
+portions retain their Apache License 2.0 notices; see
+[ThirdPartyNotices.md](ThirdPartyNotices.md).

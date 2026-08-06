@@ -1,3 +1,9 @@
+;   Copyright (c) Rich Hickey. All rights reserved.
+;   Distributed under the Eclipse Public License 1.0.
+;   Test scenarios adapted from clojure.tools.deps v0.31.1642.
+;   Grenadine adaptations Copyright 2026 Ingy döt Net.
+;   See Provenance.md.
+
 (ns grenadine.expander-test
   (:require [clojure.test :refer [deftest is testing]]
             [grenadine.expander :as expander]

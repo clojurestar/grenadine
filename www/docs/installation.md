@@ -88,6 +88,10 @@ Archives and `grenadine-checksums.txt` are published on the
 Extract the archive for your platform and place `grenadine` or
 `grenadine.exe` on `PATH`.
 
+Each release also publishes `grenadine-VERSION-src.tar.gz`, containing the
+complete generated portable source tree, the pinned upstream manifest,
+portability patches, licenses, and provenance ledger.
+
 | Operating system | Architectures |
 | --- | --- |
 | Linux | amd64, arm64, armv6 |
@@ -108,6 +112,9 @@ install it on `PATH` with:
 ```sh
 make install
 ```
+
+The build runs `make src` automatically to verify and assemble the
+upstream-backed namespaces.
 
 For a regular user this installs `grenadine` in `$HOME/.local/bin`. When run
 as root it defaults to `/usr/local/bin`. Override the prefix when needed:

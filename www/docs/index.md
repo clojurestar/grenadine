@@ -116,3 +116,17 @@ table and archive instructions.
 
 For source, development instructions, and releases, see the
 [Grenadine repository](https://github.com/clojurestar/grenadine).
+
+## Acknowledgements
+
+Grenadine's portable resolver is generated from pinned source files and
+portability patches based on the Clojure
+[`tools.deps`](https://github.com/clojure/tools.deps),
+[`tools.deps.edn`](https://github.com/clojure/tools.deps.edn), and
+[`tools.gitlibs`](https://github.com/clojure/tools.gitlibs) projects. We
+gratefully credit the Clojure team and contributors, particularly Alex Miller,
+and the original Clojure copyright holder Rich Hickey. Maven version semantics
+adapt code from [Apache Maven](https://maven.apache.org/).
+
+See [Provenance and license](provenance.md) for exact source revisions, file
+mappings, licenses, and source-availability information.

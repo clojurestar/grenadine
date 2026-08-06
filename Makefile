@@ -26,6 +26,7 @@ include $M/let-go.mk
 include $M/gh.mk
 include $M/powershell.mk
 include $M/shellcheck.mk
+include $M/yq.mk
 include $M/clean.mk
 include $M/shell.mk
 
@@ -39,12 +40,28 @@ RELEASE-DIST := $(CURDIR)/util/release-dist
 BREW-UPDATE := $(CURDIR)/util/brew-update
 DIST := $(CURDIR)/dist
 RELEASE-BUILD := $(CURDIR)/.cache/release
+SOURCE-PATCHES := $(CURDIR)/util/source-patches
+SOURCE-MANIFEST := $(CURDIR)/patch/sources.yaml
 PREFIX ?= $(if $(filter 0,$(shell id -u)),/usr/local,$(HOME)/.local)
 GRENADINE-SOURCES := $(wildcard src/grenadine/*.clj src/grenadine/*.cljc src/grenadine/host/*.clj)
 
+.PHONY: src patch src-check src-clean
+
+src: $(YQ) $(SOURCE-PATCHES) $(SOURCE-MANIFEST)
+	$Q YQ='$(YQ)' FORCE='$(FORCE)' '$(SOURCE-PATCHES)' src '$(CURDIR)' '$(YQ)'
+
+patch: $(YQ) $(SOURCE-PATCHES) $(SOURCE-MANIFEST)
+	$Q YQ='$(YQ)' '$(SOURCE-PATCHES)' patch '$(CURDIR)' '$(YQ)'
+
+src-check: $(YQ) $(SOURCE-PATCHES) $(SOURCE-MANIFEST)
+	$Q YQ='$(YQ)' '$(SOURCE-PATCHES)' check '$(CURDIR)' '$(YQ)'
+
+src-clean: $(YQ) $(SOURCE-PATCHES) $(SOURCE-MANIFEST)
+	$Q YQ='$(YQ)' '$(SOURCE-PATCHES)' clean '$(CURDIR)' '$(YQ)'
+
 default:: build
 
-$(SOURCE-STAGE-STAMP): $(GRENADINE-SOURCES) $(VERSION-FILE) $(STAGE-SOURCES)
+$(SOURCE-STAGE-STAMP): src $(GRENADINE-SOURCES) $(VERSION-FILE) $(STAGE-SOURCES)
 	@$(ECHO) "* Staging Grenadine sources"
 	$Q '$(STAGE-SOURCES)' '$(CURDIR)' '$(SOURCE-STAGE)'
 	$Q touch '$@'
@@ -64,42 +81,45 @@ $(GRENADINE): $(SOURCE-STAGE-STAMP) $(GLOAT)
 
 build: $(GRENADINE)
 
-jar: $(LEIN) project.clj
+jar: src $(LEIN) project.clj
 	lein jar
+
+test-jar: jar
+	test/jar 'target/grenadine-$(shell cat $(VERSION-FILE)).jar'
 
 install: $(GRENADINE)
 	$Q install -d '$(DESTDIR)$(PREFIX)/bin'
 	$Q install -m 0755 '$(GRENADINE)' '$(DESTDIR)$(PREFIX)/bin/grenadine'
 
-test: test-all test-cli test-scripts test-release
+test: test-all test-cli test-scripts test-jar test-release
 
-test-clj: $(CLOJURE)
+test-clj: src $(CLOJURE)
 	$(CLOJURE) -M:test
 
-test-bb: $(BB)
+test-bb: src $(BB)
 	$(BB) -cp src:test -m grenadine.test-runner
 
-test-glj: $(GLJ)
+test-glj: src $(GLJ)
 	GLJ_CLASSPATH=src:test $(GLJ) -e \
 	  "(require 'grenadine.test-runner) (grenadine.test-runner/-main)"
 
 ifneq (,$(wildcard $(JOLT_SOURCE_DIR)/Makefile))
-test-jolt:
+test-jolt: src
 	$(MAKE) -C '$(JOLT_SOURCE_DIR)' testbin
 	JOLT_PWD=. '$(JOLT_SOURCE_DIR)/target/release/jolt' \
 	  run test/jolt_runner.clj
 else
-test-jolt: $(JOLT)
+test-jolt: src $(JOLT)
 	JOLT_PWD=. $(JOLT) run test/jolt_runner.clj
 endif
 
-test-lg: $(LG)
+test-lg: src $(LG)
 	LG_SOURCE_PATHS=src:test $(LG) -e \
 	  "(require 'grenadine.test-runner) (grenadine.test-runner/-main)"
 
 test-all: test-clj test-bb test-glj test-jolt test-lg
 
-oracle: $(CLOJURE)
+oracle: src $(CLOJURE)
 	$(CLOJURE) -M:oracle -m grenadine.oracle
 
 test-cli: $(GRENADINE)
@@ -108,10 +128,11 @@ test-cli: $(GRENADINE)
 test-release: $(BB)
 	BB='$(BB)' test/release
 
-test-scripts: $(SHELLCHECK) $(PWSH)
-	$(SHELLCHECK) util/brew-update util/stage-sources util/release util/release-dist test/cli test/homebrew test/installer test/release www/docs/get www/docs/install
+test-scripts: src-check $(SHELLCHECK) $(PWSH)
+	$(SHELLCHECK) util/brew-update util/source-patches util/stage-sources util/release util/release-dist test/cli test/homebrew test/installer test/jar test/provenance test/release www/docs/get www/docs/install
 	test/homebrew
 	test/installer
+	test/provenance
 	$(PWSH) -NoProfile -Command '$$tokens = $$null; $$errors = $$null; [System.Management.Automation.Language.Parser]::ParseFile("www/docs/get.ps1", [ref] $$tokens, [ref] $$errors) > $$null; if ($$errors.Count) { $$errors | Out-String | Write-Error; exit 1 }'
 
 site:
@@ -128,7 +149,7 @@ release-prep:
 	  $(error VERSION is required on the command line))
 	$Q '$(RELEASE)' prepare '$(VERSION)'
 
-release-dist: $(SOURCE-STAGE-STAMP) $(GLOAT)
+release-dist: src-check $(SOURCE-STAGE-STAMP) $(GLOAT)
 	@$(if $(filter command line,$(origin VERSION)),,\
 	  $(error VERSION is required on the command line))
 	$Q '$(RELEASE-DIST)' \
@@ -150,5 +171,5 @@ release-mark-deployed:
 	  $(error usage: make release-mark-deployed VERSION=x.y.z DEPLOYED=1))
 	$Q '$(RELEASE)' mark-deployed '$(VERSION)'
 
-MAKES-CLEAN += .cache/clojure .cache/jolt .cache/source-stage .cache/release .cpcache target bin dist www/site pom.xml
+MAKES-CLEAN += .cache/clojure .cache/jolt .cache/source-stage .cache/release .cpcache target bin dist www/site pom.xml src/grenadine/basis.cljc src/grenadine/coordinate.cljc src/grenadine/expander.cljc src/grenadine/gitlibs.cljc
 MAKES-REALCLEAN += .cache/homebrew-grenadine www/venv
