@@ -156,7 +156,8 @@
 
 (defn -main
   [& _args]
-  (let [local-repo ".cache/oracle-m2"
+  (try
+    (let [local-repo ".cache/oracle-m2"
         _ (System/setProperty "clojure.gitlibs.dir" gitlibs-dir)
         corpus (conj (load-corpus)
                      {:name :local-pom
@@ -205,4 +206,6 @@
        (ex-info "Grenadine JVM oracle mismatch"
                 {:dependency-failures (mapv :name failures)
                  :version-failures version-failures
-                 :fuzz-failures (mapv :case fuzz-failures)})))))
+                 :fuzz-failures (mapv :case fuzz-failures)}))))
+    (finally
+      (shutdown-agents))))

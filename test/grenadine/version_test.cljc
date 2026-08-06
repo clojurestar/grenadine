@@ -1,3 +1,11 @@
+; Licensed to the Apache Software Foundation (ASF) under one or more
+; contributor license agreements. See the NOTICE file distributed with this
+; work for additional information regarding copyright ownership. The ASF
+; licenses this file under the Apache License, Version 2.0.
+;
+; Version and range scenarios adapted from Apache Maven maven-3.9.16.
+; Grenadine adaptations Copyright 2026 Ingy döt Net. See Provenance.md.
+
 (ns grenadine.version-test
   (:require [clojure.test :refer [deftest is]]
             [grenadine.test-support :refer [throws?]]

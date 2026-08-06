@@ -1,0 +1,28 @@
+sources:
+- project: tools.deps
+  repository: https://github.com/clojure/tools.deps.git
+  revision: a525ff14dd0f37bdc0006ed536d511ae2cd29e5c
+  source: src/main/clojure/clojure/tools/deps.clj
+  target: src/grenadine/expander.cljc
+  sha256: d7b92f6152ed60f4be4f184dc343241649d518d5053f592bcfaf7cbd7a01d716
+
+- project: tools.deps
+  repository: https://github.com/clojure/tools.deps.git
+  revision: a525ff14dd0f37bdc0006ed536d511ae2cd29e5c
+  source: src/main/clojure/clojure/tools/deps.clj
+  target: src/grenadine/basis.cljc
+  sha256: d7b92f6152ed60f4be4f184dc343241649d518d5053f592bcfaf7cbd7a01d716
+
+- project: tools.deps.edn
+  repository: https://github.com/clojure/tools.deps.edn.git
+  revision: e6b074d119c901de7bdcf9da6e065e1291c00e58
+  source: src/main/clojure/clojure/tools/deps/edn.clj
+  target: src/grenadine/coordinate.cljc
+  sha256: 3f82aeb6e44b98a667a379aa6a6099cff45f16516bbd4778d2b49ade91cd527e
+
+- project: tools.gitlibs
+  repository: https://github.com/clojure/tools.gitlibs.git
+  revision: e8732b6b02cc4908524dc73aa8d231e78b78b150
+  source: src/main/clojure/clojure/tools/gitlibs/impl.clj
+  target: src/grenadine/gitlibs.cljc
+  sha256: 47786a358ed309b9cb453712d0d0fd2879072e850856bd7e8df3eeec1720fd27

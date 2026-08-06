@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+top=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+
+grep -Fqx 'Eclipse Public License - v 1.0' "$top/License"
+grep -Fq ':name "Eclipse Public License 1.0"' "$top/project.clj"
+grep -Fq 'license "EPL-1.0"' "$top/util/brew-update"
+
+for project in tools.deps tools.deps.edn tools.gitlibs; do
+  [[ -s "$top/patch/$project.patch" ]]
+  grep -Fq "project: $project" "$top/patch/sources.yaml"
+done
+
+for generated in basis coordinate expander gitlibs; do
+  path="src/grenadine/$generated.cljc"
+  [[ -f "$top/$path" ]]
+  if git -C "$top" ls-files --error-unmatch "$path" >/dev/null 2>&1; then
+    echo "generated source is tracked: $path" >&2
+    exit 1
+  fi
+done
+
+grep -Fq 'Portable adaptation of clojure.tools.deps at v0.31.1642.' \
+  "$top/src/grenadine/expander.cljc"
+grep -Fq 'Portable adaptation of org.clojure/tools.gitlibs at v2.6.217.' \
+  "$top/src/grenadine/gitlibs.cljc"
+grep -Fq 'canonicalization behavior from tools.deps.edn v0.9.48.' \
+  "$top/src/grenadine/coordinate.cljc"
+grep -Fq 'Portable adaptation of Apache Maven ComparableVersion.java' \
+  "$top/src/grenadine/version.cljc"
+grep -Fq 'Test scenarios adapted from clojure.tools.deps v0.31.1642.' \
+  "$top/test/grenadine/expander_test.cljc"
+grep -Fq 'Version and range scenarios adapted from Apache Maven maven-3.9.16.' \
+  "$top/test/grenadine/version_test.cljc"
+grep -Fq 'Yogthos' "$top/Provenance.md"
+
+grep -Fq 'Alex Miller' "$top/ReadMe.md"
+grep -Fq 'Alex Miller' "$top/ThirdPartyNotices.md"
+grep -Fq 'matching Git tag' "$top/ThirdPartyNotices.md"
+
+grep -Fq "cp -R \"\$top/licenses/.\" \"\$license_base/\"" \
+  "$top/util/release-dist"
+grep -Fq "cp \"\$top/Provenance.md\" \"\$package_dir/\"" \
+  "$top/util/release-dist"
+grep -Fq "source_name=\"grenadine-\$version-src\"" \
+  "$top/util/release-dist"
+grep -Fq "\`make src\`" "$top/Provenance.md"
+grep -Fq "\`make patch\`" "$top/Provenance.md"
+
+echo 'provenance and license checks passed'

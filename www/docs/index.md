@@ -11,14 +11,15 @@ hide:
 > Pomegranate, with the JVM pressed out.
 
 Grenadine is first a **pure Clojure library** for resolving and installing
-Maven, Git, and local dependencies. Its resolver core runs unchanged on JVM Clojure,
+Maven, Git, and local dependencies.
+Its resolver core runs unchanged on JVM Clojure,
 [Babashka](https://babashka.org/),
 [Glojure](https://github.com/glojurelang/glojure),
 [Jolt](https://github.com/jolt-lang/jolt), and
 [let-go](https://github.com/nooga/let-go).
 
-It gives Clojure dialects a shared way to support `deps.edn`-style
-dependencies without reimplementing resolution for every runtime.
+It gives Clojure dialects a shared way to support `deps.edn`-style dependencies
+without reimplementing resolution for every runtime.
 
 ## One resolver, many dialects
 
@@ -31,9 +32,11 @@ The portable `grenadine.core` library:
 - emits deterministic locks; and
 - prepares extracted Clojure source roots for non-JVM runtimes.
 
-The portable API lives in `grenadine.core`. Small runtime integrations provide
-filesystem, HTTP, digest, and load-path operations. Dialect-facing facades add
-familiar `add-lib`, `add-libs`, `add-deps`, and `sync-deps` entry points.
+The portable API lives in `grenadine.core`.
+Small runtime integrations provide filesystem, HTTP, digest, and load-path
+operations.
+Dialect-facing facades add familiar `add-lib`, `add-libs`, `add-deps`, and
+`sync-deps` entry points.
 
 [Get started with the library](getting-started.md){ .md-button .md-button--primary }
 [Read the core API reference](api-reference.md){ .md-button }
@@ -41,9 +44,9 @@ familiar `add-lib`, `add-libs`, `add-deps`, and `sync-deps` entry points.
 ## Also a standalone CLI
 
 Grenadine also ships as a native command compiled with
-[Gloat](https://gloathub.org/). It is useful when you want to install the
-dependencies from a local or remote `deps.edn` by hand, without first running
-a Clojure dialect or a JVM.
+[Gloat](https://gloathub.org/).
+It is useful when you want to install the dependencies from a local or remote
+`deps.edn` by hand, without first running a Clojure dialect or a JVM.
 
 Install the latest release on Bash or Zsh:
 
@@ -82,17 +85,17 @@ grenadine --repository=my-m2 --add \
   https://github.com/seancorfield/honeysql/blob/develop/deps.edn
 ```
 
-The command lists each newly installed dependency immediately, then prints
-the installed, already-present, and total counts. Quiet mode suppresses
-non-error output.
+The command lists each newly installed dependency immediately, then prints the
+installed, already-present, and total counts.
+Quiet mode suppresses non-error output.
 
 [Install Grenadine](installation.md){ .md-button .md-button--primary }
 [Read the CLI reference](cli-reference.md){ .md-button }
 
 ## Run without installing
 
-On Bash and Zsh, the current release can be downloaded, verified, and run from
-a temporary cache without installing it on `PATH`:
+On Bash and Zsh, the current release can be downloaded, verified, and run from a
+temporary cache without installing it on `PATH`:
 
 ```sh
 $(source <(curl -sL clojurestar.github.io/grenadine/get)) \
@@ -114,5 +117,20 @@ amd64 and arm64; and FreeBSD, OpenBSD, and NetBSD on amd64 and arm64.
 See [Installation](installation.md#release-archives) for the complete platform
 table and archive instructions.
 
-For source, development instructions, and releases, see the
-[Grenadine repository](https://github.com/clojurestar/grenadine).
+For source, development instructions, and releases, see the [Grenadine
+repository](https://github.com/clojurestar/grenadine).
+
+## Acknowledgements
+
+Grenadine's portable resolver is generated from pinned source files and
+portability patches based on the Clojure
+[`tools.deps`](https://github.com/clojure/tools.deps),
+[`tools.deps.edn`](https://github.com/clojure/tools.deps.edn), and
+[`tools.gitlibs`](https://github.com/clojure/tools.gitlibs) projects.
+We gratefully credit the Clojure team and contributors, particularly Alex
+Miller, and the original Clojure copyright holder Rich Hickey.
+Maven version semantics adapt code from [Apache
+Maven](https://maven.apache.org/).
+
+See [Provenance and license](provenance.md) for exact source revisions, file
+mappings, licenses, and source-availability information.

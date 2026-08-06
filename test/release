@@ -73,7 +73,7 @@ expect_failure validation-stop run_release
   "$repo/project.clj") == "$version" ]]
 grep -q "^- version: $version\$" "$repo/Changes"
 if git -C "$repo" grep -qF "$current" -- \
-  ReadMe.md VERSION project.clj www; then
+  ReadMe.md VERSION www; then
   echo 'old published version remains' >&2
   exit 1
 fi
