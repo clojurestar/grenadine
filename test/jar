@@ -13,7 +13,7 @@ listing=$(unzip -Z1 "$jar")
 for entry in \
   grenadine/core.cljc \
   grenadine/expander.cljc \
-  META-INF/leiningen/cc.clojure/grenadine/License \
+  META-INF/LICENSE \
   ThirdPartyNotices.md \
   Provenance.md \
   patch/sources.yaml \
@@ -30,11 +30,12 @@ grep -Fq 'Portable adaptation of clojure.tools.deps at v0.31.1642.' \
   < <(unzip -p "$jar" grenadine/expander.cljc)
 
 pom=$(unzip -p "$jar" META-INF/maven/cc.clojure/grenadine/pom.xml)
+[[ $pom == "$(< "$top/pom.xml")" ]]
 grep -Fq '<name>Eclipse Public License 1.0</name>' <<< "$pom"
 grep -Fq '<url>https://opensource.org/license/epl-1-0</url>' <<< "$pom"
 
 jar_epl=$(unzip -p \
-  "$jar" META-INF/leiningen/cc.clojure/grenadine/License)
+  "$jar" META-INF/LICENSE)
 source_epl=$(< "$top/License")
 [[ $jar_epl == "$source_epl" ]]
 

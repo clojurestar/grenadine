@@ -1,5 +1,6 @@
 /.cache/
 /.cpcache/
+/bindings/
 /target/
 /jolt/
 /bin/

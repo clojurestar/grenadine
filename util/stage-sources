@@ -2,9 +2,9 @@
 
 set -euo pipefail
 
-top=${1:?usage: stage-sources TOP DESTINATION}
-destination=${2:?usage: stage-sources TOP DESTINATION}
-version=$(< "$top/VERSION")
+top=${1:?usage: stage-sources TOP DESTINATION VERSION}
+destination=${2:?usage: stage-sources TOP DESTINATION VERSION}
+version=${3:?usage: stage-sources TOP DESTINATION VERSION}
 
 [[ $version =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
   echo "stage-sources: VERSION must have the form X.Y.Z" >&2
