@@ -7,26 +7,23 @@ Grenadine is a portable dependency resolver library in pure Clojure:
 See the [Grenadine website](https://clojurestar.github.io/grenadine/) for the
 published documentation and install helpers.
 
-The resolver core runs unchanged on JVM Clojure, Babashka, Glojure, Jolt, and
-let-go.
+The resolver core is portable source used by Glojure and Jolt.
 It resolves Maven, Git, and local coordinates, builds tools.deps-shaped bases,
 supports newest / Maven-nearest / tools.deps mediation, emits deterministic
 locks, and prepares source roots for non-JVM runtimes.
 
 
-## Installation
+## Source artifact
 
-Add the following dependency to your deps.edn file:
+Grenadine publishes a vendorable source JAR to Clojars as:
 
-```clojure
-{:deps {cc.clojure/grenadine {:mvn/version "0.1.5"}}}
+```text
+cc.clojure/grenadine:0.1.5
 ```
 
-Or to your Leiningen project file:
-
-```clojure
-[cc.clojure/grenadine "0.1.5"]
-```
+The artifact does not declare a Clojure runtime dependency.
+Dialect and tool authors can vendor its portable sources and provide the host
+effects required by their runtime.
 
 
 ## Portable dynamic dependencies
@@ -45,9 +42,8 @@ unchanged across Clojure dialects:
 ```
 
 `clojurestar.deps/add-deps` always returns `nil`.
-Use `babashka.deps`, `glojure.deps`, `jolt.deps`, `let-go.deps`, or
-`grenadine.jvm` when code needs backend-specific options, operations, or result
-data.
+Use `glojure.deps` or `jolt.deps` when code needs backend-specific options,
+operations, or result data.
 
 
 ## Command line
@@ -193,7 +189,7 @@ Upstream-backed generated files are not committed.
 After editing one of them, run `make patch` to regenerate the reviewable project
 patches; `make src-check` verifies an exact round trip.
 
-`test-all` runs the same portable suite on all five runtimes.
+`test-all` runs the portable suite on Glojure and Jolt.
 `oracle` compares Grenadine bases with JVM tools.deps and version ordering with
 Maven `ComparableVersion`.
 Its deterministic generated cases are configured with `GRENADINE_ORACLE_SEED`
@@ -212,11 +208,14 @@ Set `GRENADINE_HOMEBREW_URL` to use another tap remote, or set
 `GRENADINE_HOMEBREW_PUSH=0` to prepare and inspect the tap checkout without
 pushing it.
 
-The Gloat-compiled command includes its Glojure effect host from this repository
-and builds against released Glojure.
-JVM Clojure, Babashka, Glojure, Jolt, and let-go each expose a dynamic
-dependency backend; the `clojurestar.deps` namespace is the intentionally small
-common API over them.
+The Gloat-compiled command includes its Glojure effect host from this
+repository and builds against released Glojure.
+Glojure embeds the Grenadine-backed `glojure.deps` facade and supplies its
+native host from the Glojure binary.
+Jolt owns its `jolt.deps` implementation and vendors the Grenadine sources it
+uses into the Jolt binary.
+Gobb owns its separate `gobb.deps` implementation and `clojurestar.deps`
+facade; it does not load a Grenadine runtime adapter from this repository.
 
 
 ## Acknowledgements and Provenance

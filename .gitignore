@@ -5,6 +5,7 @@
 /jolt/
 /bin/
 /dist/
+/m2/
 /pom.xml
 /www/site/
 /www/venv/

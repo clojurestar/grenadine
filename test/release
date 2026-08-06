@@ -4,7 +4,7 @@ set -euo pipefail
 
 top=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 release="$top/util/release"
-bb=${BB:?BB is required}
+yq=${YQ:?YQ is required}
 temporary=$(mktemp -d)
 trap 'rm -rf -- "$temporary"' EXIT
 
@@ -50,7 +50,7 @@ run_release() {
     cd "$repo"
     env -u CLOJARS_USERNAME -u CLOJARS_PASSWORD \
       PATH="$fake_bin:$PATH" \
-      BB="$bb" \
+      YQ="$yq" \
       CLOJARS_USERNAME=ignored-incomplete-environment \
       PUBLISH_SECRETS="$secrets" \
       RELEASE_SKIP_CLOJARS_GROUP_CHECK=1 \
@@ -78,12 +78,10 @@ if git -C "$repo" grep -qF "$current" -- \
 fi
 grep -Fqx "exact=$current nearby=${current}24" \
   "$repo/test/version-fixtures"
-grep -Fq "cc.clojure/grenadine {:mvn/version \"$version\"}" \
-  "$repo/ReadMe.md"
-grep -Fq "cc.clojure/grenadine \"$version\"" "$repo/ReadMe.md"
-grep -Fq "cc.clojure/grenadine {:mvn/version \"$version\"}" \
+grep -Fq "cc.clojure/grenadine:$version" "$repo/ReadMe.md"
+grep -Fq "cc.clojure/grenadine:$version" \
   "$repo/www/docs/getting-started.md"
-grep -Fq "cc.clojure/grenadine {:mvn/version \"$version\"}" \
+grep -Fq "cc.clojure/grenadine:$version" \
   "$repo/www/docs/installation.md"
 changed=$(git -C "$repo" diff-tree --no-commit-id --name-only -r HEAD | sort)
 expected=$(printf '%s\n' \
@@ -106,7 +104,7 @@ set +e
 missing_output=$(
   cd "$repo" &&
     env -u CLOJARS_USERNAME -u CLOJARS_PASSWORD \
-      BB="$bb" PUBLISH_SECRETS="$missing_token" \
+      YQ="$yq" PUBLISH_SECRETS="$missing_token" \
       "$release" release "$version" 2>&1
 )
 missing_status=$?
@@ -122,7 +120,7 @@ set +e
 fallback_output=$(
   cd "$repo" &&
     PATH="$fake_bin:$PATH" \
-      BB="$bb" \
+      YQ="$yq" \
       CLOJARS_USERNAME=environment-user \
       CLOJARS_PASSWORD=environment-token \
       PUBLISH_SECRETS="$missing_token" \

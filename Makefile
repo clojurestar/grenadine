@@ -17,12 +17,10 @@ JOLT_SOURCE_DIR ?= $(abspath $(CURDIR)/../jolt)
 
 include $M/init.mk
 include $M/clojure.mk
-include $M/babashka.mk
 include $M/glojure.mk
 include $M/gloat.mk
 include $M/gobb.mk
 include $M/jolt.mk
-include $M/let-go.mk
 include $M/gh.mk
 include $M/powershell.mk
 include $M/shellcheck.mk
@@ -106,12 +104,6 @@ install: $(GRENADINE)
 
 test: test-all test-cli test-scripts test-jar test-release
 
-test-clj: src $(CLOJURE)
-	$(CLOJURE) -M:test
-
-test-bb: src $(BB)
-	$(BB) -cp src:test -m grenadine.test-runner
-
 test-glj: src $(GLJ)
 	GLJ_CLASSPATH=src:test $(GLJ) -e \
 	  "(require 'grenadine.test-runner) (grenadine.test-runner/-main)"
@@ -126,11 +118,7 @@ test-jolt: src $(JOLT)
 	JOLT_PWD=. $(JOLT) run test/jolt_runner.clj
 endif
 
-test-lg: src $(LG)
-	LG_SOURCE_PATHS=src:test $(LG) -e \
-	  "(require 'grenadine.test-runner) (grenadine.test-runner/-main)"
-
-test-all: test-clj test-bb test-glj test-jolt test-lg
+test-all: test-glj test-jolt
 
 oracle: src $(CLOJURE)
 	$(CLOJURE) -M:oracle -m grenadine.oracle
@@ -138,8 +126,8 @@ oracle: src $(CLOJURE)
 test-cli: $(GRENADINE)
 	GRENADINE='$(GRENADINE)' test/cli
 
-test-release: $(BB)
-	BB='$(BB)' test/release
+test-release: $(YQ)
+	YQ='$(YQ)' test/release
 
 test-scripts: src-check $(SHELLCHECK) $(PWSH)
 	$(SHELLCHECK) util/brew-update util/source-patches util/stage-sources util/release util/release-dist test/cli test/homebrew test/installer test/jar test/provenance test/release www/docs/get www/docs/install
@@ -175,10 +163,10 @@ release-homebrew:
 	  $(error VERSION is required on the command line))
 	$Q '$(BREW-UPDATE)' '$(VERSION)'
 
-release: $(GH) $(BB)
+release: $(GH) $(YQ)
 	@$(if $(filter command line,$(origin VERSION)),,\
 	  $(error VERSION is required on the command line))
-	$Q BB='$(BB)' GH='$(GH)' '$(RELEASE)' release '$(VERSION)'
+	$Q YQ='$(YQ)' GH='$(GH)' '$(RELEASE)' release '$(VERSION)'
 
 release-mark-deployed:
 	@$(if $(and $(filter 1,$(DEPLOYED)),$(filter command line,$(origin VERSION))),,\

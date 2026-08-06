@@ -3,11 +3,7 @@
 (defmacro throws?
   "Return true when evaluating body throws, across Grenadine's runtime matrix."
   [& body]
-  #?(:lg
-     `(try (do ~@body false)
-           (catch _# true))
-
-     :glj
+  #?(:glj
      `(try (do ~@body false)
            (catch go/any _# true))
 

@@ -12,11 +12,9 @@ hide:
 
 Grenadine is first a **pure Clojure library** for resolving and installing
 Maven, Git, and local dependencies.
-Its resolver core runs unchanged on JVM Clojure,
-[Babashka](https://babashka.org/),
-[Glojure](https://github.com/glojurelang/glojure),
-[Jolt](https://github.com/jolt-lang/jolt), and
-[let-go](https://github.com/nooga/let-go).
+Its resolver core is portable source used by
+[Glojure](https://github.com/glojurelang/glojure) and
+[Jolt](https://github.com/jolt-lang/jolt).
 
 It gives Clojure dialects a shared way to support `deps.edn`-style dependencies
 without reimplementing resolution for every runtime.

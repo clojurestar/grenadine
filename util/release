@@ -16,7 +16,7 @@ changes_file="$top/Changes"
 makefile="$top/Makefile"
 deployed_marker="$top/.cache/clojars/$version.deployed"
 secrets_file=${PUBLISH_SECRETS:-${HOME:?}/.publish-secrets}
-bb=${BB:-bb}
+yq=${YQ:-yq}
 
 has_changes_entry() {
   grep -q "^- version: $version\$" "$changes_file"
@@ -151,26 +151,16 @@ release_commit_ready() {
 load_clojars_credentials() {
   local file_user file_token
   if [[ -r $secrets_file ]] &&
-     { [[ -x $bb ]] || command -v "$bb" >/dev/null 2>&1; }; then
+     { [[ -x $yq ]] || command -v "$yq" >/dev/null 2>&1; }; then
     file_user=$(
-      "$bb" -e '
-        (require (quote [clj-yaml.core :as yaml]))
-        (let [[file] *command-line-args*
-              value (get-in (yaml/parse-string (slurp file))
-                            [:clojure :user])]
-          (when-not (and (string? value) (seq value))
-            (throw (ex-info "missing .clojure.user" {})))
-          (print value))' "$secrets_file" 2>/dev/null
+      "$yq" -er \
+        '.clojure.user | select(tag == "!!str" and length > 0)' \
+        "$secrets_file" 2>/dev/null
     ) || file_user=
     file_token=$(
-      "$bb" -e '
-        (require (quote [clj-yaml.core :as yaml]))
-        (let [[file] *command-line-args*
-              value (get-in (yaml/parse-string (slurp file))
-                            [:clojure :token])]
-          (when-not (and (string? value) (seq value))
-            (throw (ex-info "missing .clojure.token" {})))
-          (print value))' "$secrets_file" 2>/dev/null
+      "$yq" -er \
+        '.clojure.token | select(tag == "!!str" and length > 0)' \
+        "$secrets_file" 2>/dev/null
     ) || file_token=
     if [[ -n $file_user && -n $file_token ]]; then
       CLOJARS_USERNAME=$file_user
@@ -338,6 +328,15 @@ validate_jar() {
   grep -Fxq patch/sources.yaml <<< "$listing"
   grep -Fxq licenses/Apache-2.0.txt <<< "$listing"
   grep -Fxq licenses/Apache-Maven-NOTICE.txt <<< "$listing"
+  grep -Fxq glojure/deps.clj <<< "$listing"
+  if grep -Fxq grenadine/host/jvm.clj <<< "$listing"; then
+    echo "release: oracle-only JVM host found in source JAR" >&2
+    exit 1
+  fi
+  if grep -Fq '<artifactId>clojure</artifactId>' <<< "$pom"; then
+    echo "release: unexpected Clojure runtime dependency in POM" >&2
+    exit 1
+  fi
 }
 
 publish() {

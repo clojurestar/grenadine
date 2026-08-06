@@ -5,16 +5,17 @@ archives](https://github.com/clojurestar/grenadine/releases).
 The installer and one-shot launchers select the current archive and verify its
 SHA-256 checksum before using the binary.
 
-## Clojure library
+## Vendored source
 
-Add the Clojars coordinate to `deps.edn`:
+Grenadine publishes a source JAR to Clojars as:
 
-```clojure
-{:deps {cc.clojure/grenadine {:mvn/version "0.1.5"}}}
+```text
+cc.clojure/grenadine:0.1.5
 ```
 
-The library contains the portable core, JVM host, and runtime integration
-namespaces.
+The artifact contains the portable core and Glojure integration sources.
+It does not declare a Clojure runtime dependency or provide a JVM runtime host.
+It is intended for dialect and tool authors to vendor into their builds.
 Start with [Getting started](getting-started.md) and the [Core API
 reference](api-reference.md).
 

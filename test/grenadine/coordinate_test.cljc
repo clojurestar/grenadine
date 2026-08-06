@@ -9,13 +9,8 @@
             [grenadine.basis :as basis]
             [grenadine.coordinate :as coordinate]
             [grenadine.gitlibs :as gitlibs]
-            [grenadine.lock :as lock]
             [grenadine.test-support :refer [throws?]]
-            #?(:glj [grenadine.host.glojure :as host]
-               :lg [grenadine.host.let-go :as host]
-               :jolt [grenadine.coordinate]
-               :clj [grenadine.host.jvm :as host]
-               :bb [grenadine.host.bb :as host])))
+            #?(:glj [grenadine.host.glojure :as host])))
 
 (deftest coordinate-types
   (is (= :mvn (coordinate/coordinate-type {:mvn/version "1"})))
@@ -78,43 +73,7 @@
   (is (= "https/github.com/example/project"
          (gitlibs/clean-url "https://github.com/example/project.git"))))
 
-#?(:lg nil
-   :jolt nil
-   :clj
-   (deftest local-basis
-     (let [runtime (host/host)
-           root ((:canonical-path runtime) "test/fixtures/local-lib")
-           result
-           (basis/calc-basis
-            {:deps {'example/local {:local/root "test/fixtures/local-lib"}}}
-            {:host runtime :base-dir "."})]
-       (is (= {:local/root root
-               :deps/root root
-               :deps/manifest :deps
-               :paths [(str root "/src")]
-               :parents #{[]}}
-              (get-in result [:libs 'example/local])))
-       (is (= [(str root "/src")] (:classpath-roots result)))))
-
-   :bb
-   (deftest local-basis
-     (let [runtime (host/host)
-           root ((:canonical-path runtime) "test/fixtures/local-lib")
-           result
-           (basis/calc-basis
-            {:deps {'example/local {:local/root "test/fixtures/local-lib"}}}
-            {:host runtime :base-dir "."})]
-       (is (= root (get-in result [:libs 'example/local :local/root])))
-       (is (= [(str root "/src")] (:classpath-roots result)))
-       (is (= 2 (get-in result [:grenadine/lock :lock/version])))
-       (is (= [(str root "/src")]
-              (lock/lock->classpath
-               (:grenadine/lock result)
-               {:host runtime :local-repo ".cache/m2"}))))))
-
-#?(:lg nil
-   :jolt nil
-   :default
+#?(:glj
    (deftest maven-classifiers-remain-distinct-in-bases-and-locks
      (let [runtime (host/host)
            result
