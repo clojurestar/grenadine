@@ -37,7 +37,7 @@ ensure_upstream() {
   local project=$1 repository revision checkout
   repository=$(field_for_project "$project" repository)
   revision=$(field_for_project "$project" revision)
-  [[ $(wc -l <<< "$repository") == 1 && $(wc -l <<< "$revision") == 1 ]] || {
+  (( $(wc -l <<< "$repository") == 1 && $(wc -l <<< "$revision") == 1 )) || {
     echo "source-patches: inconsistent upstream data for $project" >&2
     exit 1
   }

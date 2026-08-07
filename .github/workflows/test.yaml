@@ -25,7 +25,9 @@ jobs:
 
     - name: Install GNU coreutils
       if: runner.os == 'macOS'
-      run: brew install coreutils
+      run: |
+        brew install coreutils
+        echo "$(brew --prefix coreutils)/libexec/gnubin" >> "$GITHUB_PATH"
 
     - name: Run tests
       run: make test oracle

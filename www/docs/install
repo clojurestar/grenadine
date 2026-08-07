@@ -4,7 +4,7 @@ _grenadine_install_main() (
   set -euo pipefail
 
   local get_url=${GRENADINE_GET_URL:-https://clojurestar.github.io/grenadine/get}
-  local prefix executable name destination temporary
+  local prefix get_script executable name destination temporary
 
   command -v curl >/dev/null || {
     echo "grenadine install: curl is required" >&2
@@ -19,8 +19,9 @@ _grenadine_install_main() (
     prefix=${HOME:?HOME is required}/.local
   fi
 
-  # shellcheck disable=SC1090
-  executable=$(source <(curl -fsSL "$get_url"))
+  get_script=$(curl -fsSL "$get_url")
+  # shellcheck disable=SC1091
+  executable=$(source /dev/stdin <<< "$get_script")
   [[ -n $executable && $executable != false && -f $executable ]] || {
     echo "grenadine install: could not obtain a verified executable" >&2
     return 1

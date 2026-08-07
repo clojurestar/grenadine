@@ -41,7 +41,8 @@ git -C "$repo" push --quiet --set-upstream origin main
 export GIT_AUTHOR_NAME='Release Test'
 export GIT_COMMITTER_NAME='Release Test'
 
-ln -s /bin/false "$fake_bin/make"
+printf '#!/usr/bin/env bash\nexit 1\n' > "$fake_bin/make"
+chmod 0755 "$fake_bin/make"
 printf 'clojure:\n  user: fixture-user\n  token: fixture-token\n' > "$secrets"
 printf 'clojure:\n  user: fixture-user\n' > "$missing_token"
 
