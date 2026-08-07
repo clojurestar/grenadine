@@ -1,3 +1,13 @@
+- version: 0.1.6
+  date:    Fri Aug  7 03:37:50 PM EDT 2026
+  changes:
+  - Support Grenadine on Gobb
+  - Fix macOS source preparation
+  - Test on Linux and macOS with GitHub Actions
+  - Narrow runtime integrations to Glojure and Jolt
+  - Replace Leiningen with tools.build
+  - Generate portable sources from pinned upstreams
+
 - version: 0.1.5
   date:    Wed Aug  5 08:46:52 AM EDT 2026
   changes:
