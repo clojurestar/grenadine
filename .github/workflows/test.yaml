@@ -1,0 +1,31 @@
+name: Test
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+        - ubuntu-latest
+        - macos-latest
+
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Install GNU coreutils
+      if: runner.os == 'macOS'
+      run: brew install coreutils
+
+    - name: Run tests
+      run: make test oracle
