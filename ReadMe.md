@@ -7,7 +7,8 @@ Grenadine is a portable dependency resolver library in pure Clojure:
 See the [Grenadine website](https://clojurestar.github.io/grenadine/) for the
 published documentation and install helpers.
 
-The resolver core is portable source used by Glojure and Jolt.
+The resolver core is portable source used by Glojure and Jolt and tested under
+Gobb.
 It resolves Maven, Git, and local coordinates, builds tools.deps-shaped bases,
 supports newest / Maven-nearest / tools.deps mediation, emits deterministic
 locks, and prepares source roots for non-JVM runtimes.
@@ -179,6 +180,7 @@ make src
 make build
 make test
 make test-all
+make test-ecosystem
 make oracle
 ```
 
@@ -190,6 +192,8 @@ After editing one of them, run `make patch` to regenerate the reviewable project
 patches; `make src-check` verifies an exact round trip.
 
 `test-all` runs the portable suite on Glojure and Jolt.
+`test-ecosystem` also builds the adjacent Gobb checkout and runs the portable
+suite through it; set `GOBB_SOURCE_DIR` when that checkout is elsewhere.
 `oracle` compares Grenadine bases with JVM tools.deps and version ordering with
 Maven `ComparableVersion`.
 Its deterministic generated cases are configured with `GRENADINE_ORACLE_SEED`
@@ -215,7 +219,9 @@ native host from the Glojure binary.
 Jolt owns its `jolt.deps` implementation and vendors the Grenadine sources it
 uses into the Jolt binary.
 Gobb owns its separate `gobb.deps` implementation and `clojurestar.deps`
-facade; it does not load a Grenadine runtime adapter from this repository.
+facade. Grenadine's portable facade selects that backend under the `:gobb`
+reader feature, but Gobb does not load a Grenadine runtime adapter from this
+repository.
 
 
 ## Acknowledgements and Provenance

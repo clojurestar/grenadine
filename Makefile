@@ -14,6 +14,7 @@ JOLT_GITLIBS := $(CURDIR)/.cache/jolt/gitlibs
 JOLT_LOCAL_REPO := $(CURDIR)/.cache/m2
 export JOLT_CACHE_DIR JOLT_GITLIBS JOLT_LOCAL_REPO
 JOLT_SOURCE_DIR ?= $(abspath $(CURDIR)/../jolt)
+GOBB_SOURCE_DIR ?= $(abspath $(CURDIR)/../gobb)
 
 include $M/init.mk
 include $M/clojure.mk
@@ -119,6 +120,19 @@ test-jolt: src $(JOLT)
 endif
 
 test-all: test-glj test-jolt
+
+test-gobb: src
+	@test -f '$(GOBB_SOURCE_DIR)/Makefile' || { \
+	  echo 'test-gobb requires a Gobb source checkout at $(GOBB_SOURCE_DIR)' >&2; \
+	  exit 1; \
+	}
+	$(MAKE) -C '$(GOBB_SOURCE_DIR)' build
+	'$(GOBB_SOURCE_DIR)/bin/gobb' --classpath src:test -e \
+	  "(load-file \"src/clojurestar/deps.cljc\") \
+	   (require 'grenadine.test-runner) \
+	   (grenadine.test-runner/-main)"
+
+test-ecosystem: test-all test-gobb
 
 oracle: src $(CLOJURE)
 	$(CLOJURE) -M:oracle -m grenadine.oracle

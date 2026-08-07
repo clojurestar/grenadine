@@ -23,6 +23,8 @@ always returns `nil`.
 The dialect namespaces below retain their richer APIs.
 Glojure and Jolt embed this facade and their integration sources in the dialect
 binary.
+On Gobb, the facade selects Gobb's built-in `gobb.deps` backend through the
+`:gobb` reader feature.
 
 Every facade provides this shape:
 
@@ -79,3 +81,12 @@ uses into the Jolt binary.
 (deps/add-deps
  '{:deps {org.clojure/data.csv {:mvn/version "1.1.0"}}})
 ```
+
+## Gobb
+
+Namespace: `gobb.deps`
+
+Gobb owns its dependency resolver and load-path integration. Portable code can
+still call `clojurestar.deps/add-deps`; Grenadine dispatches that facade to
+`gobb.deps` when the `:gobb` reader feature is active. Gobb does not use the
+Glojure effect host or load a separate Grenadine runtime adapter.

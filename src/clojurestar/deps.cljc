@@ -1,7 +1,8 @@
 (ns clojurestar.deps
   "Dialect-neutral dynamic dependency loading."
   (:require
-   #?(:glj [glojure.deps :as implementation]
+   #?(:gobb [gobb.deps :as implementation]
+      :glj [glojure.deps :as implementation]
       :jolt [jolt.deps :as implementation])))
 
 (defn add-deps

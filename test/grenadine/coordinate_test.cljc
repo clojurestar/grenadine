@@ -10,7 +10,8 @@
             [grenadine.coordinate :as coordinate]
             [grenadine.gitlibs :as gitlibs]
             [grenadine.test-support :refer [throws?]]
-            #?(:glj [grenadine.host.glojure :as host])))
+            #?@(:gobb []
+                :glj [[grenadine.host.glojure :as host]])))
 
 (deftest coordinate-types
   (is (= :mvn (coordinate/coordinate-type {:mvn/version "1"})))
@@ -73,7 +74,8 @@
   (is (= "https/github.com/example/project"
          (gitlibs/clean-url "https://github.com/example/project.git"))))
 
-#?(:glj
+#?(:gobb nil
+   :glj
    (deftest maven-classifiers-remain-distinct-in-bases-and-locks
      (let [runtime (host/host)
            result
