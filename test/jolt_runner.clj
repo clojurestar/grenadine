@@ -15,6 +15,7 @@
               "src/grenadine/basis.cljc"
               "src/grenadine/core.cljc"
               "src/grenadine/runtime.cljc"
+              "src/grenadine/require_deps.cljc"
               "test/grenadine/test_support.cljc"
               "test/grenadine/xml_test.cljc"
               "test/grenadine/pom_test.cljc"
@@ -25,6 +26,7 @@
               "test/grenadine/repo_test.cljc"
               "test/grenadine/source_test.cljc"
               "test/grenadine/runtime_test.cljc"
+              "test/grenadine/require_deps_test.cljc"
               "test/grenadine/clojurestar_deps_test.cljc"
               "test/grenadine/coordinate_test.cljc"
               "test/grenadine/test_runner.cljc"]]
