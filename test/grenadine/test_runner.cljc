@@ -7,6 +7,7 @@
             [grenadine.lock-test]
             [grenadine.pom-test]
             [grenadine.repo-test]
+            [grenadine.require-deps-test]
             [grenadine.runtime-test]
             [grenadine.source-test]
             [grenadine.version-test]
@@ -24,6 +25,7 @@
                         'grenadine.graph-test
                         'grenadine.lock-test
                         'grenadine.repo-test
+                        'grenadine.require-deps-test
                         'grenadine.source-test
                         'grenadine.runtime-test)]
     (when (pos? (+ fail error))
