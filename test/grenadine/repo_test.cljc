@@ -35,7 +35,7 @@
   (let [host {:home-dir (fn [] "/home/test")
               :getenv
               (fn [name]
-                (when (= name "GRENADINE_LOCAL_REPOSITORY")
+                (when (= name "GRENADINE_MAVEN_REPOSITORY")
                   "/env/m2"))}]
     (is (= "/explicit/m2"
            (repo/local-repo {:host host :local-repo "/explicit/m2"})))

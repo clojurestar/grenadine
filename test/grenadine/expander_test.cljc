@@ -161,6 +161,28 @@
     (is (= #{'ex2/a 'ex2/b 'ex2/d}
            (set (keys (libs repo {'ex2/a {:fkn/version "1"}})))))))
 
+(deftest provided-libraries-are-terminal
+  (let [expanded (atom [])
+        result
+        (expansion
+         base-repo
+         {'fake/clojure {:fkn/version "1.9.0"}
+          'fake/spec.alpha {:fkn/version "0.1.124"}}
+         {:provided-libs #{'fake/clojure}
+          :trace? true
+          :coord-deps
+          (fn [lib coordinate]
+            (swap! expanded conj lib)
+            (get-in base-repo
+                    [lib (select-keys coordinate [:fkn/version])]))})]
+    (is (= #{'fake/spec.alpha} (set (keys (:libs result)))))
+    (is (= ['fake/spec.alpha] @expanded))
+    (is (= :provided
+           (->> (get-in result [:trace :log])
+                (filter #(= 'fake/clojure (:lib %)))
+                first
+                :reason)))))
+
 (deftest returns-stable-order-trace-and-warnings
   (let [warnings (atom [])
         result

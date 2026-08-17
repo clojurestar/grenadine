@@ -10,9 +10,9 @@ endif
 CLJ_CONFIG := $(CURDIR)/.cache/clojure
 export CLJ_CONFIG
 JOLT_CACHE_DIR := $(CURDIR)/.cache/jolt
-JOLT_GITLIBS := $(CURDIR)/.cache/jolt/gitlibs
-JOLT_LOCAL_REPO := $(CURDIR)/.cache/m2
-export JOLT_CACHE_DIR JOLT_GITLIBS JOLT_LOCAL_REPO
+JOLT_GITLIBS_CACHE := $(CURDIR)/.cache/jolt/gitlibs
+JOLT_MAVEN_REPOSITORY := $(CURDIR)/.cache/m2
+export JOLT_CACHE_DIR JOLT_GITLIBS_CACHE JOLT_MAVEN_REPOSITORY
 JOLT_SOURCE_DIR ?= $(abspath $(CURDIR)/../jolt)
 GOBB_SOURCE_DIR ?= $(abspath $(CURDIR)/../gobb)
 

@@ -61,13 +61,13 @@
          (coordinate/infer-git-url (symbol "ht.sr.~example" "demo")))))
 
 (deftest git-cache-configuration
-  (let [env (atom {"GRENADINE_GITLIBS" "/grenadine"
+  (let [env (atom {"GRENADINE_GITLIBS_CACHE" "/grenadine"
                    "GITLIBS" "/tools"})
         host {:getenv #(get @env %) :home-dir (constantly "/home/test")}]
     (is (= "/explicit" (gitlibs/gitlibs-dir
                          {:host host :gitlibs-dir "/explicit"})))
     (is (= "/grenadine" (gitlibs/gitlibs-dir {:host host})))
-    (swap! env dissoc "GRENADINE_GITLIBS")
+    (swap! env dissoc "GRENADINE_GITLIBS_CACHE")
     (is (= "/tools" (gitlibs/gitlibs-dir {:host host})))
     (reset! env {})
     (is (= "/home/test/.gitlibs" (gitlibs/gitlibs-dir {:host host}))))
