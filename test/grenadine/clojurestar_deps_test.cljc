@@ -21,8 +21,8 @@
           (is (nil?
                (deps/require-deps
                 {:cache-dir "/cache"}
-                '["gist:ingydotnet/f70409675d234aa4f2fe379cd975a4f5"
-                  :as support]
+                ["gist:ingydotnet/f70409675d234aa4f2fe379cd975a4f5"
+                 :as support]
                 '["mvn:example/library@1.0.0/example.library"
                   :refer [throws?]])))
           (is (= [["gist:ingydotnet/f70409675d234aa4f2fe379cd975a4f5"
