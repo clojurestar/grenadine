@@ -158,7 +158,7 @@ check_exact "list repository" 0 \
   "$grenadine" --repository "$list_repo" --list
 check_exact "list environment repository" 0 \
   $'org.alpha/example 2.0.0\norg.example/demo 1.0.0' \
-  env GRENADINE_LOCAL_REPOSITORY="$list_repo" "$grenadine" --list
+  env GRENADINE_MAVEN_REPOSITORY="$list_repo" "$grenadine" --list
 check_empty "quiet list" 0 \
   "$grenadine" --quiet --repository="$list_repo" --list
 check "operation conflict" 1 \
@@ -335,7 +335,7 @@ environment_repo="$temporary/environment repo"
 seed_repo "$environment_repo"
 write_deps "$deps_file"
 check "environment repository" 0 '^=> Installed: 0  Already: 1  Total: 1$' \
-  env GRENADINE_LOCAL_REPOSITORY="$environment_repo" \
+  env GRENADINE_MAVEN_REPOSITORY="$environment_repo" \
   "$grenadine" --add "$deps_file"
 
 printf '[]\n' > "$deps_file"

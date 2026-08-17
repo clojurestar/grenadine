@@ -113,7 +113,7 @@ The default remote repositories are Maven Central followed by Clojars. Supply
 The local repository is selected in this order:
 
 1. `:local-repo` in the operation options;
-2. `GRENADINE_LOCAL_REPOSITORY` from the host environment;
+2. `GRENADINE_MAVEN_REPOSITORY` from the host environment;
 3. `$HOME/.m2/repository`.
 
 POMs and artifacts already present locally are reused. If an artifact is
@@ -126,7 +126,7 @@ selected in this order:
 
 1. `:gitlibs-dir` in operation options or `-G/--gitlibs` in the CLI;
 2. top-level `:gitlibs/dir` in a deps source;
-3. `GRENADINE_GITLIBS`;
+3. `GRENADINE_GITLIBS_CACHE`;
 4. `GITLIBS`;
 5. `$HOME/.gitlibs`.
 

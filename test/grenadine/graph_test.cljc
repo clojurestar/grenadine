@@ -66,6 +66,34 @@
                                       :mediation :newest})
                 "c")))))
 
+(deftest provided-libraries-are-not-selected-or-expanded
+  (doseq [mode [:newest :tools-deps]]
+    (let [requested (atom [])
+          resolution
+          (graph/resolve-graph
+           '{demo/application {:mvn/version "1"}
+             org.clojure/spec.alpha {:mvn/version "0.1.143"}}
+           {:mediation mode
+            :provided-libs '#{org.clojure/clojure org.clojure/clojurescript}
+            :pom-fn
+            (fn [{:keys [group artifact] :as coords}]
+              (swap! requested conj [group artifact])
+              (cond
+                (= [group artifact] ["demo" "application"])
+                {:deps [{:group "org.clojure" :artifact "clojure"
+                         :version "1.9.0"}]}
+
+                (= [group artifact] ["org.clojure" "spec.alpha"])
+                {:deps []}
+
+                :else
+                (throw (ex-info "provided dependency was expanded"
+                                {:coords coords}))))})]
+      (is (= #{["demo" "application"] ["org.clojure" "spec.alpha"]}
+             (set (keys (:selected resolution)))))
+      (is (= #{["demo" "application"] ["org.clojure" "spec.alpha"]}
+             (set @requested))))))
+
 (deftest filters-paths
   (testing "exclusions are path-specific"
     (let [deps
