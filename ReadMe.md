@@ -59,15 +59,29 @@ import its namespace:
 ```
 
 Literal libspec vectors do not need quoting; quoted vectors remain compatible.
-Libspecs support `:as` and explicit `:refer [...]`. Maven and Gist coordinates
-are supported. A pinned Gist file can be written as either
+Libspecs support `:as` and explicit `:refer [...]`. Maven, Gist, and GitHub
+source-file coordinates are supported. A pinned Gist file can be written as either
 `gist:<owner>/<id>/<file>@<revision>` or
 `gist:<owner>/<id>/<revision>/<file>`.
 
+A single GitHub source file uses
+`github:<owner>/<repo>/<ref>/<path.clj|cljc>`. The GitHub URL-style
+`github:<owner>/<repo>/blob/<ref>/<path.clj|cljc>` form is equivalent. For
+example:
+
+```clojure
+(require-deps
+ ["github:weavejester/medley/1.7.0/src/medley/core.cljc" :as medley])
+```
+
+GitHub refs are one path segment. Full 40-character commit SHAs reuse the
+persistent cache; named refs are refreshed when loaded in a new process.
+
 An optional leading map accepts `:mvn/local-repo` and `:gitlibs/dir`.
-`:cache-dir` remains a compatibility alias for the Gist cache root. Gist source
-is stored beneath `gist/` in the same effective Gitlibs directory used for Git
-dependencies.
+`:cache-dir` remains a compatibility alias for the source-file cache root.
+Gist and GitHub source are stored beneath `gist/` and `github/` in the same
+effective Gitlibs directory used for Git dependencies. Selected source files
+must be self-contained and begin with an `ns` form.
 
 Non-JVM runtime facades treat `org.clojure/clojure` and
 `org.clojure/clojurescript` as terminal host-provided libraries: their
