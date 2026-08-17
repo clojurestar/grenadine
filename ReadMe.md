@@ -46,6 +46,28 @@ unchanged across Clojure dialects:
 Use `glojure.deps` or `jolt.deps` when code needs backend-specific options,
 operations, or result data.
 
+Use `require-deps` when a script should acquire a dependency and immediately
+import its namespace:
+
+```clojure
+(require '[clojurestar.deps :refer [require-deps]])
+
+(require-deps
+ ["mvn:dev.weavejester/medley@1.10.0/medley.core" :as medley])
+
+(medley/index-by :id [{:id 1} {:id 2}])
+```
+
+Literal libspec vectors do not need quoting; quoted vectors remain compatible.
+Libspecs support `:as` and explicit `:refer [...]`. Maven and Gist coordinates
+are supported.
+
+Non-JVM runtime facades treat `org.clojure/clojure` and
+`org.clojure/clojurescript` as terminal host-provided libraries: their
+artifacts and transitive trees are not acquired. Directly declared libraries,
+including `org.clojure/spec.alpha` and `org.clojure/core.specs.alpha`, remain
+ordinary dependencies.
+
 
 ## Command line
 
@@ -82,12 +104,13 @@ then reports installed, already-present, and total counts.
 Already-present dependencies are not listed individually.
 Use `-q` or `--quiet` to suppress non-error output.
 The repository used by `-R` or `--repository` takes precedence over
-`:mvn/local-repo` in the deps source, `GRENADINE_LOCAL_REPOSITORY`, and the
+`:mvn/local-repo` in the deps source, `GRENADINE_MAVEN_REPOSITORY`, and the
 default `$HOME/.m2/repository`, in that order.
 
 Deps sources may contain Maven, Git, and local coordinates.
 Git coordinates use a tools.gitlibs-compatible cache selected by `-G/--gitlibs`,
-top-level `:gitlibs/dir`, `GRENADINE_GITLIBS`, `GITLIBS`, or `$HOME/.gitlibs`,
+top-level `:gitlibs/dir`, `GRENADINE_GITLIBS_CACHE`, `GITLIBS`, or
+`$HOME/.gitlibs`,
 in that order.
 Git is only required when a Git coordinate is encountered.
 Unqualified Maven names mean `name/name`, classifiers use
@@ -159,10 +182,10 @@ make install PREFIX=/opt/grenadine
 ## Configuration
 
 Grenadine uses the standard Maven local repository at `$HOME/.m2/repository`.
-Set `GRENADINE_LOCAL_REPOSITORY` to use another repository:
+Set `GRENADINE_MAVEN_REPOSITORY` to use another repository:
 
 ```sh
-export GRENADINE_LOCAL_REPOSITORY=/path/to/maven/repository
+export GRENADINE_MAVEN_REPOSITORY=/path/to/maven/repository
 ```
 
 An explicit `:local-repo` option takes precedence over the environment.

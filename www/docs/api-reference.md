@@ -63,6 +63,7 @@ Important options:
 | `:base-dir` | Directory for relative local coordinates. |
 | `:include-optional?` | Include optional transitive dependencies. |
 | `:exclusions` | Global exclusions as symbols, strings, or coordinate maps. |
+| `:provided-libs` | Library symbols satisfied by the host without selection, acquisition, or transitive expansion. |
 | `:source-roots?` | Extract installed JARs and return source roots. |
 | `:source-libs` | Restrict extraction to a set of library symbols. |
 | `:on-install` | Callback invoked after each newly installed artifact. |
