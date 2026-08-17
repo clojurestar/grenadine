@@ -62,6 +62,11 @@ Literal libspec vectors do not need quoting; quoted vectors remain compatible.
 Libspecs support `:as` and explicit `:refer [...]`. Maven and Gist coordinates
 are supported.
 
+An optional leading map accepts `:mvn/local-repo` and `:gitlibs/dir`.
+`:cache-dir` remains a compatibility alias for the Gist cache root. Gist source
+is stored beneath `gist/` in the same effective Gitlibs directory used for Git
+dependencies.
+
 Non-JVM runtime facades treat `org.clojure/clojure` and
 `org.clojure/clojurescript` as terminal host-provided libraries: their
 artifacts and transitive trees are not acquired. Directly declared libraries,
@@ -108,10 +113,9 @@ The repository used by `-R` or `--repository` takes precedence over
 default `$HOME/.m2/repository`, in that order.
 
 Deps sources may contain Maven, Git, and local coordinates.
-Git coordinates use a tools.gitlibs-compatible cache selected by `-G/--gitlibs`,
-top-level `:gitlibs/dir`, `GRENADINE_GITLIBS_CACHE`, `GITLIBS`, or
-`$HOME/.gitlibs`,
-in that order.
+Git coordinates and Gist source use a tools.gitlibs-compatible cache selected
+by `-G/--gitlibs`, top-level `:gitlibs/dir`, `GRENADINE_GITLIBS_DIR`,
+`GITLIBS`, or `$HOME/.gitlibs`, in that order.
 Git is only required when a Git coordinate is encountered.
 Unqualified Maven names mean `name/name`, classifiers use
 `group/artifact$classifier`, and Maven version ranges are resolved to concrete

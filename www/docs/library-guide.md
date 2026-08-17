@@ -121,14 +121,18 @@ missing from its preferred remote, the remaining configured repositories are
 tried in order.
 
 Git checkouts use the tools.gitlibs layout: mirrors live under `_repos` and
-detached worktrees under `libs/<namespace>/<name>/<full-sha>`. The Git cache is
-selected in this order:
+detached worktrees under `libs/<namespace>/<name>/<full-sha>`. Gist source
+loaded by `require-deps` lives under `gist/<owner>/<id>/<revision>/`. Their
+shared cache root is selected in this order:
 
 1. `:gitlibs-dir` in operation options or `-G/--gitlibs` in the CLI;
 2. top-level `:gitlibs/dir` in a deps source;
-3. `GRENADINE_GITLIBS_CACHE`;
+3. `GRENADINE_GITLIBS_DIR`;
 4. `GITLIBS`;
 5. `$HOME/.gitlibs`.
+
+For `require-deps`, `:gitlibs/dir` is the primary explicit option and
+`:cache-dir` is retained as a compatibility alias.
 
 Set `GITLIBS_COMMAND` to select another Git executable. Git is invoked with an
 argument vector, never through a shell, and is only required when a Git

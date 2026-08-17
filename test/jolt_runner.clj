@@ -16,6 +16,7 @@
               "src/grenadine/core.cljc"
               "src/grenadine/runtime.cljc"
               "src/grenadine/require_deps.cljc"
+              "src/clojurestar/deps.cljc"
               "test/grenadine/test_support.cljc"
               "test/grenadine/xml_test.cljc"
               "test/grenadine/pom_test.cljc"
