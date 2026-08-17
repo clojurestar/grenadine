@@ -130,9 +130,31 @@
         latest-host (fake-host source)
         latest-path (str "/cache/gist/ingydotnet/" gist-id
                          "/latest/mathy.clj")]
-    (is (= (str "/home/tester/.cache/clojurestar/gist/ingydotnet/"
+    (is (= (str "/home/tester/.gitlibs/gist/ingydotnet/"
                 gist-id "/latest/mathy.clj")
            (required/gist-cache-path (:host latest-host) {} latest)))
+    (is (= (str "/gitlibs/gist/ingydotnet/" gist-id
+                "/latest/mathy.clj")
+           (required/gist-cache-path
+            (:host latest-host)
+            {:gitlibs/dir "/gitlibs" :cache-dir "/legacy-cache"}
+            latest)))
+    (is (= (str "/dialect-gitlibs/gist/ingydotnet/" gist-id
+                "/latest/mathy.clj")
+           (required/gist-cache-path
+            (assoc (:host latest-host)
+                   :gitlibs-dir (constantly "/dialect-gitlibs"))
+            {}
+            latest)))
+    (is (= (str "/shared-gitlibs/gist/ingydotnet/" gist-id
+                "/latest/mathy.clj")
+           (required/gist-cache-path
+            (assoc (:host latest-host)
+                   :getenv #(get {"GRENADINE_GITLIBS_DIR"
+                                   "/shared-gitlibs"}
+                                 %))
+            {}
+            latest)))
     (is (= latest-path
            (:path (required/acquire-gist! (:host latest-host)
                                           {:cache-dir "/cache"} latest))))
@@ -168,11 +190,16 @@
                  (:type (ex-data error)))))))))
 
 (deftest options-and-conflicts
-  (is (= {:cache-dir "/cache" :mvn/local-repo "/m2"}
+  (is (= {:cache-dir "/cache"
+          :gitlibs/dir "/gitlibs"
+          :mvn/local-repo "/m2"}
          (required/parse-options
-          {:cache-dir "/cache" :mvn/local-repo "/m2"})))
+          {:cache-dir "/cache"
+           :gitlibs/dir "/gitlibs"
+           :mvn/local-repo "/m2"})))
   (is (throws? (required/parse-options {:unknown true})))
   (is (throws? (required/parse-options {:cache-dir ""})))
+  (is (throws? (required/parse-options {:gitlibs/dir ""})))
   (try
     (required/namespace-conflict!
      'mathy {:coordinate "gist:one/aaaa"} {:coordinate "gist:two/bbbb"})

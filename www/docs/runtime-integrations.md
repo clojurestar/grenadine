@@ -61,8 +61,14 @@ Use `require-deps` to acquire and import namespaces in one operation:
 
 Literal vectors use require-style syntax without quoting. Quoted vectors and
 expressions that evaluate to libspec vectors remain compatible. An optional
-leading map accepts `:mvn/local-repo` and `:cache-dir`; libspecs accept `:as`
-and explicit `:refer [...]`.
+leading map accepts `:mvn/local-repo` and `:gitlibs/dir`; `:cache-dir` remains
+a compatibility alias for the Gist cache root. Libspecs accept `:as` and
+explicit `:refer [...]`.
+
+Gist source is cached under `gist/` in the runtime's effective Gitlibs
+directory. The dialect-specific `*_GITLIBS_DIR` setting wins, followed by
+`GRENADINE_GITLIBS_DIR`, the tools.gitlibs-compatible `GITLIBS` variable, and
+the runtime default.
 
 The non-JVM facades treat `org.clojure/clojure` and
 `org.clojure/clojurescript` as terminal libraries supplied by the host. They
@@ -80,8 +86,8 @@ If `add-load-path` is unavailable, the operation fails with
 `:grenadine.runtime/missing-load-path-hook`.
 
 `GLOJURE_MAVEN_REPOSITORY` overrides the shared
-`GRENADINE_MAVEN_REPOSITORY`. `GLOJURE_GITLIBS_CACHE` similarly overrides
-`GRENADINE_GITLIBS_CACHE`. Explicit operation or deps-map paths take precedence
+`GRENADINE_MAVEN_REPOSITORY`. `GLOJURE_GITLIBS_DIR` similarly overrides
+`GRENADINE_GITLIBS_DIR`. Explicit operation or deps-map paths take precedence
 over environment settings.
 
 ```clojure
@@ -101,7 +107,7 @@ It supports Maven, Git, and local coordinates.
 The implementation is owned by Jolt and vendors the Grenadine namespaces it
 uses into the Jolt binary.
 
-`JOLT_MAVEN_REPOSITORY` and `JOLT_GITLIBS_CACHE` override their shared
+`JOLT_MAVEN_REPOSITORY` and `JOLT_GITLIBS_DIR` override their shared
 `GRENADINE_*` counterparts. Explicit `:mvn/local-repo` takes precedence.
 
 ```clojure
@@ -120,5 +126,5 @@ still call `clojurestar.deps/add-deps`; Grenadine dispatches that facade to
 `gobb.deps` when the `:gobb` reader feature is active. Gobb does not use the
 Glojure effect host or load a separate Grenadine runtime adapter.
 
-`GOBB_MAVEN_REPOSITORY` and `GOBB_GITLIBS_CACHE` override their shared
+`GOBB_MAVEN_REPOSITORY` and `GOBB_GITLIBS_DIR` override their shared
 `GRENADINE_*` counterparts. Explicit `:mvn/local-repo` takes precedence.
