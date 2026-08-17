@@ -65,6 +65,10 @@ leading map accepts `:mvn/local-repo` and `:gitlibs/dir`; `:cache-dir` remains
 a compatibility alias for the Gist cache root. Libspecs accept `:as` and
 explicit `:refer [...]`.
 
+A pinned Gist file can be written as either
+`gist:<owner>/<id>/<file>@<revision>` or
+`gist:<owner>/<id>/<revision>/<file>`; both forms use the same cache entry.
+
 Gist source is cached under `gist/` in the runtime's effective Gitlibs
 directory. The dialect-specific `*_GITLIBS_DIR` setting wins, followed by
 `GRENADINE_GITLIBS_DIR`, the tools.gitlibs-compatible `GITLIBS` variable, and
