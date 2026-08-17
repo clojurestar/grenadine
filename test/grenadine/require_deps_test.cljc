@@ -65,6 +65,14 @@
            (:filename
             (required/parse-coordinate
              (str "gist:ingydotnet/" gist-id "/mathy.cljc@" revision)))))
+    (is (= (dissoc
+            (required/parse-coordinate
+             (str "gist:ingydotnet/" gist-id "/mathy.cljc@" revision))
+            :coordinate)
+           (dissoc
+            (required/parse-coordinate
+             (str "gist:ingydotnet/" gist-id "/" revision "/mathy.cljc"))
+            :coordinate)))
     (is (= [:gist "ingydotnet" gist-id nil nil]
            (:identity
             (required/parse-coordinate
@@ -76,6 +84,8 @@
              (str "gist:ingydotnet/" gist-id "/../mathy.clj")
              (str "gist:ingydotnet/" gist-id "/mathy.cljs")
              (str "gist:ingydotnet/" gist-id "@abc")
+             (str "gist:ingydotnet/" gist-id "/abc/mathy.clj")
+             (str "gist:ingydotnet/" gist-id "/" revision "/mathy.cljs")
              "https://example.com/library.clj"]]
       (is (throws? (required/parse-coordinate coordinate))))))
 
@@ -119,13 +129,21 @@
               "/raw/" revision "/mathy.cljc")
          (required/gist-raw-url
           (required/parse-coordinate
-           (str "gist:ingydotnet/" gist-id "/mathy.cljc@" revision))))))
+           (str "gist:ingydotnet/" gist-id "/mathy.cljc@" revision)))))
+  (is (= (str "https://gist.githubusercontent.com/ingydotnet/" gist-id
+              "/raw/" revision "/mathy.cljc")
+         (required/gist-raw-url
+          (required/parse-coordinate
+           (str "gist:ingydotnet/" gist-id "/" revision "/mathy.cljc"))))))
 
 (deftest cache-layout-and-acquisition
   (let [latest (required/parse-coordinate
                 (str "gist:ingydotnet/" gist-id "/mathy.clj"))
         pinned (required/parse-coordinate
                 (str "gist:ingydotnet/" gist-id "/mathy.clj@" revision))
+        slash-pinned (required/parse-coordinate
+                      (str "gist:ingydotnet/" gist-id "/"
+                           revision "/mathy.clj"))
         source "(ns mathy)\n(defn add [a b] (+ a b))\n"
         latest-host (fake-host source)
         latest-path (str "/cache/gist/ingydotnet/" gist-id
@@ -133,6 +151,10 @@
     (is (= (str "/home/tester/.gitlibs/gist/ingydotnet/"
                 gist-id "/latest/mathy.clj")
            (required/gist-cache-path (:host latest-host) {} latest)))
+    (is (= (required/gist-cache-path
+            (:host latest-host) {:cache-dir "/cache"} pinned)
+           (required/gist-cache-path
+            (:host latest-host) {:cache-dir "/cache"} slash-pinned)))
     (is (= (str "/gitlibs/gist/ingydotnet/" gist-id
                 "/latest/mathy.clj")
            (required/gist-cache-path

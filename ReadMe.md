@@ -60,7 +60,9 @@ import its namespace:
 
 Literal libspec vectors do not need quoting; quoted vectors remain compatible.
 Libspecs support `:as` and explicit `:refer [...]`. Maven and Gist coordinates
-are supported.
+are supported. A pinned Gist file can be written as either
+`gist:<owner>/<id>/<file>@<revision>` or
+`gist:<owner>/<id>/<revision>/<file>`.
 
 An optional leading map accepts `:mvn/local-repo` and `:gitlibs/dir`.
 `:cache-dir` remains a compatibility alias for the Gist cache root. Gist source
