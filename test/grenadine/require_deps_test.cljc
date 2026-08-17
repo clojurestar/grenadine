@@ -5,6 +5,10 @@
 
 (def gist-id "f70409675d234aa4f2fe379cd975a4f5")
 (def revision "0123456789abcdef0123456789abcdef01234567")
+(def github-coordinate
+  "github:weavejester/medley/blob/1.7.0/src/medley/core.cljc")
+(def short-github-coordinate
+  "github:weavejester/medley/1.7.0/src/medley/core.cljc")
 
 (defn fake-host
   ([source] (fake-host source {}))
@@ -77,6 +81,24 @@
            (:identity
             (required/parse-coordinate
              (str "https://gist.github.com/ingydotnet/" gist-id))))))
+  (testing "GitHub source file"
+    (let [expected
+          {:provider :github
+           :owner "weavejester"
+           :repo "medley"
+           :revision "1.7.0"
+           :path "src/medley/core.cljc"
+           :filename "core.cljc"
+           :identity [:github "weavejester" "medley" "1.7.0"
+                      "src/medley/core.cljc"]}]
+      (is (= expected
+             (select-keys
+              (required/parse-coordinate github-coordinate)
+              [:provider :owner :repo :revision :path :filename :identity])))
+      (is (= expected
+             (select-keys
+              (required/parse-coordinate short-github-coordinate)
+              [:provider :owner :repo :revision :path :filename :identity])))))
   (testing "malformed and unsafe forms"
     (doseq [coordinate
             ["mvn:medley@1.10.0/medley.core"
@@ -86,6 +108,11 @@
              (str "gist:ingydotnet/" gist-id "@abc")
              (str "gist:ingydotnet/" gist-id "/abc/mathy.clj")
              (str "gist:ingydotnet/" gist-id "/" revision "/mathy.cljs")
+             "github:weavejester/medley/blob/1.7.0/src/../core.cljc"
+             "github:weavejester/medley/1.7.0/src/../core.cljc"
+             "github:weavejester/medley/blob/1.7.0/src/medley/core.cljs"
+             "github:weavejester/medley/blob//src/medley/core.cljc"
+             "github:weavejester/medley/blob/1.7.0/"
              "https://example.com/library.clj"]]
       (is (throws? (required/parse-coordinate coordinate))))))
 
@@ -135,6 +162,11 @@
          (required/gist-raw-url
           (required/parse-coordinate
            (str "gist:ingydotnet/" gist-id "/" revision "/mathy.cljc"))))))
+
+(deftest github-raw-url-construction
+  (is (= "https://raw.githubusercontent.com/weavejester/medley/1.7.0/src/medley/core.cljc"
+         (required/github-raw-url
+          (required/parse-coordinate github-coordinate)))))
 
 (deftest cache-layout-and-acquisition
   (let [latest (required/parse-coordinate
@@ -209,6 +241,47 @@
         (is false "expected HTTP failure")
         (catch #?(:glj go/any :jolt Throwable :default Throwable) error
           (is (= :clojurestar.deps/gist-http-failure
+                 (:type (ex-data error)))))))))
+
+(deftest github-cache-and-acquisition
+  (let [tagged (required/parse-coordinate github-coordinate)
+        sha-coordinate
+        (required/parse-coordinate
+         (str "github:weavejester/medley/blob/" revision
+              "/src/medley/core.cljc"))
+        source "(ns medley.core)\n(defn index-by [f xs] {})\n"
+        tagged-host (fake-host source)
+        tagged-path
+        "/cache/github/weavejester/medley/1.7.0/src/medley/core.cljc"]
+    (is (= tagged-path
+           (required/github-cache-path
+            (:host tagged-host) {:gitlibs/dir "/cache"} tagged)))
+    (is (= tagged-path
+           (:path (required/acquire-github!
+                   (:host tagged-host) {:gitlibs/dir "/cache"} tagged))))
+    (required/acquire-github!
+     (:host tagged-host) {:gitlibs/dir "/cache"} tagged)
+    (is (= 2 (count @(:downloads tagged-host)))
+        "a named GitHub ref is refreshed when acquisition is requested")
+    (is (= 'medley.core
+           (required/github-namespace tagged '(ns medley.core))))
+    (is (throws? (required/github-namespace tagged '(println 42))))
+    (let [sha-path
+          (str "/cache/github/weavejester/medley/" revision
+               "/src/medley/core.cljc")
+          sha-host (fake-host nil {sha-path source})
+          result (required/acquire-github!
+                  (:host sha-host) {:gitlibs/dir "/cache"} sha-coordinate)]
+      (is (:cached? result))
+      (is (= source (:source result)))
+      (is (empty? @(:downloads sha-host))))
+    (let [failed-host (fake-host nil)]
+      (try
+        (required/acquire-github!
+         (:host failed-host) {:gitlibs/dir "/cache"} tagged)
+        (is false "expected GitHub HTTP failure")
+        (catch #?(:glj go/any :jolt Throwable :default Throwable) error
+          (is (= :clojurestar.deps/github-http-failure
                  (:type (ex-data error)))))))))
 
 (deftest options-and-conflicts

@@ -62,15 +62,22 @@ Use `require-deps` to acquire and import namespaces in one operation:
 Literal vectors use require-style syntax without quoting. Quoted vectors and
 expressions that evaluate to libspec vectors remain compatible. An optional
 leading map accepts `:mvn/local-repo` and `:gitlibs/dir`; `:cache-dir` remains
-a compatibility alias for the Gist cache root. Libspecs accept `:as` and
+a compatibility alias for the source-file cache root. Libspecs accept `:as` and
 explicit `:refer [...]`.
 
 A pinned Gist file can be written as either
 `gist:<owner>/<id>/<file>@<revision>` or
 `gist:<owner>/<id>/<revision>/<file>`; both forms use the same cache entry.
 
-Gist source is cached under `gist/` in the runtime's effective Gitlibs
-directory. The dialect-specific `*_GITLIBS_DIR` setting wins, followed by
+A GitHub source file accepts either
+`github:<owner>/<repo>/<ref>/<path.clj|cljc>` or
+`github:<owner>/<repo>/blob/<ref>/<path.clj|cljc>`. The forms are equivalent
+and fetch through `raw.githubusercontent.com`. Refs occupy one path segment;
+full commit SHAs reuse persistent cache while named refs refresh in a new
+process. Selected files must be self-contained and begin with an `ns` form.
+
+Gist and GitHub source are cached under `gist/` and `github/` in the runtime's
+effective Gitlibs directory. The dialect-specific `*_GITLIBS_DIR` setting wins, followed by
 `GRENADINE_GITLIBS_DIR`, the tools.gitlibs-compatible `GITLIBS` variable, and
 the runtime default.
 
