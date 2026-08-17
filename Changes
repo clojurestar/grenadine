@@ -1,3 +1,16 @@
+- version: 0.1.7
+  date:    Mon Aug 17 04:58:07 PM EDT 2026
+  changes:
+  - Fix require-deps tests on released Jolt
+  - Support GitHub source-file dependencies
+  - Support slash-ordered pinned Gist coordinates
+  - Unify Gist and Gitlibs cache configuration
+  - Document require-deps runtime contracts
+  - Allow unquoted require-deps libspecs
+  - Treat host runtime libraries as provided
+  - Add dependency-acquiring require
+  - Fix character classification on CLJS runtimes
+
 - version: 0.1.6
   date:    Fri Aug  7 03:37:50 PM EDT 2026
   changes:
