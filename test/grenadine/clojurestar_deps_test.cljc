@@ -33,7 +33,10 @@
           (is (some? (resolve 'support/throws?)))
           (is (some? (resolve 'throws?))))]
     #?(:glj (with-redefs [glojure.deps/prepare-required! prepare] (exercise))
-       :jolt (with-redefs-fn
-               {(var jolt.deps/prepare-required!) prepare}
-               exercise)
+       :jolt (let [target (or (resolve 'jolt.deps/prepare-required!)
+                              (do
+                                (when-not (find-ns 'jolt.deps)
+                                  (create-ns 'jolt.deps))
+                                (intern 'jolt.deps 'prepare-required! prepare)))]
+               (with-redefs-fn {target prepare} exercise))
        :gobb (with-redefs [gobb.deps/prepare-required! prepare] (exercise)))))
