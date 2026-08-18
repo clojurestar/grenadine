@@ -1,3 +1,9 @@
+- version: 0.1.8
+  date:    Tue Aug 18 07:13:02 PM EDT 2026
+  changes:
+  - Add dependency currency reporting
+  - Make release validation self-contained
+
 - version: 0.1.7
   date:    Mon Aug 17 04:58:07 PM EDT 2026
   changes:

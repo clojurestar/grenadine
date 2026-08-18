@@ -3,7 +3,7 @@ M := .cache/makes
 $(shell [ -d '$M' ] || git clone -q $R '$M')
 
 MAKES_LOCAL_DIR ?= $(CURDIR)/.cache/local
-GRENADINE-VERSION := 0.1.7
+GRENADINE-VERSION := 0.1.8
 ifdef GLOAT_DIR
 GLOAT-DIR := $(GLOAT_DIR)
 endif

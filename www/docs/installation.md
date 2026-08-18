@@ -10,7 +10,7 @@ SHA-256 checksum before using the binary.
 Grenadine publishes a source JAR to Clojars as:
 
 ```text
-cc.clojure/grenadine:0.1.7
+cc.clojure/grenadine:0.1.8
 ```
 
 The artifact contains the portable core and Glojure integration sources.
@@ -32,7 +32,7 @@ brew install clojurestar/grenadine/grenadine
 To install a specific published version:
 
 ```sh
-brew install clojurestar/grenadine/grenadine@0.1.7
+brew install clojurestar/grenadine/grenadine@0.1.8
 ```
 
 ### Bash and Zsh installer
