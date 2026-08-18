@@ -65,7 +65,10 @@ grenadine --add deps.edn
 grenadine --repository=my-m2 --add deps.edn
 grenadine --quiet --add deps.edn
 grenadine --list
+grenadine --list ~/.m2/repository
 grenadine --list deps.edn
+grenadine --current
+grenadine --current deps.edn
 grenadine --add nrepl/bencode 1.1.0 clj-commons/clj-yaml
 grenadine --delete nrepl/bencode 1.1.0
 grenadine --remove clj-commons/clj-yaml

@@ -9,10 +9,54 @@ version=$(sed -n \
   "$top/Makefile")
 version_pattern=${version//./\\.}
 temporary=$(mktemp -d)
-trap 'rm -rf "$temporary"' EXIT
+server_pid=
+
+cleanup() {
+  if [[ $server_pid ]]; then
+    kill "$server_pid" 2>/dev/null || true
+    wait "$server_pid" 2>/dev/null || true
+  fi
+  rm -rf "$temporary"
+}
+
+trap cleanup EXIT
 
 failures=0
 checks=0
+
+start_http_server() {
+  local root=$1 port_file="$temporary/http-port"
+  rm -f "$port_file"
+  python3 - "$root" "$port_file" <<'PY' &
+import functools
+import http.server
+import pathlib
+import sys
+
+root, port_file = sys.argv[1:]
+class QuietHandler(http.server.SimpleHTTPRequestHandler):
+    def log_message(self, _format, *_args):
+        pass
+
+    def guess_type(self, _path):
+        return "application/octet-stream"
+
+handler = functools.partial(QuietHandler, directory=root)
+server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
+pathlib.Path(port_file).write_text(str(server.server_port), encoding="utf-8")
+server.serve_forever()
+PY
+  server_pid=$!
+  for _ in {1..100}; do
+    [[ -s $port_file ]] && break
+    sleep 0.05
+  done
+  [[ -s $port_file ]] || {
+    echo "failed to start fixture HTTP server" >&2
+    exit 1
+  }
+  server_url="http://127.0.0.1:$(<"$port_file")/"
+}
 
 check() {
   local description=$1 expected_status=$2 expected_pattern=$3
@@ -115,6 +159,18 @@ write_pom() {
     '</project>' > "$base/$artifact-$version.pom"
 }
 
+write_metadata() {
+  local repository=$1 group=$2 artifact=$3 release=$4
+  local group_path=${group//./\/}
+  local base=$repository/$group_path/$artifact
+  mkdir -p "$base"
+  printf '%s\n' \
+    '<metadata><versioning>' \
+    "<release>$release</release>" \
+    "<versions><version>$release</version></versions>" \
+    '</versioning></metadata>' > "$base/maven-metadata.xml"
+}
+
 seed_resolve_repo() {
   local repository=$1
   write_pom "$repository" demo root 1.0.0 \
@@ -154,15 +210,18 @@ check "removed resolvers option" 1 'unknown option: --resolvers' \
 list_repo="$temporary/list repo"
 seed_list_repo "$list_repo"
 check_exact "list repository" 0 \
-  $'org.alpha/example 2.0.0\norg.example/demo 1.0.0' \
+  $'org.alpha/example  2.0.0\norg.example/demo   1.0.0' \
   "$grenadine" --repository "$list_repo" --list
 check_exact "list environment repository" 0 \
-  $'org.alpha/example 2.0.0\norg.example/demo 1.0.0' \
+  $'org.alpha/example  2.0.0\norg.example/demo   1.0.0' \
   env GRENADINE_MAVEN_REPOSITORY="$list_repo" "$grenadine" --list
+check_exact "list repository directory item" 0 \
+  $'org.alpha/example  2.0.0\norg.example/demo   1.0.0' \
+  "$grenadine" --list "$list_repo"
 check_empty "quiet list" 0 \
   "$grenadine" --quiet --repository="$list_repo" --list
 check "operation conflict" 1 \
-  '--list, --add, --delete, --remove, --expand, and --mediators are mutually exclusive' \
+  '--list, --current, --add, --delete, --remove, --expand, and --mediators are mutually exclusive' \
   "$grenadine" --list --add org.example/demo 1.0.0
 
 check_exact "list mediation strategies" 0 \
@@ -181,6 +240,9 @@ check "mediator rejects unknown strategy" 1 \
   "$grenadine" --mediator=random --expand demo/root 1.0.0
 check "mediator rejects plain list" 1 \
   '--mediator is only valid' "$grenadine" --mediator newest --list
+check "mediator rejects repository directory list" 1 \
+  '--mediator is only valid with --list when dependency items are supplied' \
+  "$grenadine" --mediator newest --list "$list_repo"
 check "mediator requires a compatible operation" 1 \
   '--mediator is only valid' "$grenadine" --mediator newest
 check "expand requires an item" 1 \
@@ -191,28 +253,28 @@ seed_resolve_repo "$resolve_repo"
 write_pom "$resolve_repo" hiccup hiccup 1.0.5 ''
 write_pom "$resolve_repo" org.lwjgl lwjgl-stb 3.2.3 ''
 check_exact "expand unqualified legacy library" 0 \
-  'hiccup 1.0.5' \
+  'hiccup  1.0.5' \
   "$grenadine" --repository "$resolve_repo" --expand hiccup 1.0.5
 check_exact "expand Maven classifier" 0 \
-  "org.lwjgl/lwjgl-stb\$natives-macos 3.2.3" \
+  "org.lwjgl/lwjgl-stb\$natives-macos  3.2.3" \
   "$grenadine" --repository "$resolve_repo" --expand \
     "org.lwjgl/lwjgl-stb\$natives-macos" 3.2.3
 check_exact "expand defaults to tools-deps" 0 \
-  $'demo/branch 1.0.0\ndemo/c 2.0.0\ndemo/root 1.0.0' \
+  $'demo/branch  1.0.0\ndemo/c       2.0.0\ndemo/root    1.0.0' \
   "$grenadine" --repository "$resolve_repo" --expand demo/root 1.0.0
 check_exact "expand with nearest" 0 \
-  $'demo/branch 1.0.0\ndemo/c 1.0.0\ndemo/root 1.0.0' \
+  $'demo/branch  1.0.0\ndemo/c       1.0.0\ndemo/root    1.0.0' \
   "$grenadine" --repository "$resolve_repo" --mediator=nearest \
     --expand demo/root 1.0.0
 check_exact "expand with short mediator" 0 \
-  $'demo/branch 1.0.0\ndemo/c 2.0.0\ndemo/root 1.0.0' \
+  $'demo/branch  1.0.0\ndemo/c       2.0.0\ndemo/root    1.0.0' \
   "$grenadine" --repository "$resolve_repo" -M newest \
     --expand demo/root 1.0.0
 check_exact "expand with short option" 0 \
-  $'demo/branch 1.0.0\ndemo/c 2.0.0\ndemo/root 1.0.0' \
+  $'demo/branch  1.0.0\ndemo/c       2.0.0\ndemo/root    1.0.0' \
   "$grenadine" --repository "$resolve_repo" -X demo/root 1.0.0
 check_exact "tools-deps preserves direct root" 0 \
-  $'demo/branch 1.0.0\ndemo/c 1.0.0\ndemo/root 1.0.0' \
+  $'demo/branch  1.0.0\ndemo/c       1.0.0\ndemo/root    1.0.0' \
   "$grenadine" --repository "$resolve_repo" --mediator=tools-deps \
     --expand demo/root 1.0.0 demo/c 1.0.0
 check_empty "quiet expand" 0 \
@@ -223,17 +285,57 @@ check_empty "expand installs no jars" 0 \
 
 printf 'fixture jar\n' > "$resolve_repo/demo/root/1.0.0/root-1.0.0.jar"
 check_exact "list expanded graph marks missing jars" 0 \
-  $'demo/branch 1.0.0 MISSING\ndemo/c 2.0.0 MISSING\ndemo/root 1.0.0\n=> Installed: 1  Missing: 2  Total: 3' \
+  $'demo/branch  1.0.0  MISSING\ndemo/c       2.0.0  MISSING\ndemo/root    1.0.0\n=> Installed: 1  Missing: 2  Total: 3' \
   "$grenadine" --repository "$resolve_repo" --list demo/root 1.0.0
 check_empty "quiet expanded list" 0 \
   "$grenadine" --quiet --repository "$resolve_repo" \
     --list demo/root 1.0.0
 
+current_remote="$temporary/current-remote"
+write_metadata "$current_remote" demo branch 1.0.0
+write_metadata "$current_remote" demo c 2.1.0
+write_metadata "$current_remote" demo root 1.1.0
+start_http_server "$current_remote"
+current_deps="$temporary/current-deps.edn"
+printf '{:mvn/local-repo "%s" :mvn/repos {"central" {:url "%s"} "clojars" {:url "%s"}} :deps {demo/root {:mvn/version "1.0.0"}}}\n' \
+  "$resolve_repo" "$server_url" "$server_url" > "$current_deps"
+check_exact "current expanded graph aligns available updates" 0 \
+  $'demo/branch  1.0.0\ndemo/c       2.0.0  2.1.0\ndemo/root    1.0.0  1.1.0' \
+  "$grenadine" --current "$current_deps"
+check_exact "current expanded graph accepts mediation" 0 \
+  $'demo/branch  1.0.0\ndemo/c       1.0.0  2.1.0\ndemo/root    1.0.0  1.1.0' \
+  "$grenadine" --mediator nearest --current "$current_deps"
+check_empty "quiet current" 0 \
+  "$grenadine" --quiet --current "$current_deps"
+
+empty_repo="$temporary/empty-repo"
+mkdir -p "$empty_repo"
+check_empty "current empty selected repository" 0 \
+  "$grenadine" --repository "$empty_repo" --current
+check_empty "current empty repository directory item" 0 \
+  "$grenadine" --current "$empty_repo"
+check "current operation conflict" 1 \
+  '--list, --current, --add' "$grenadine" --list --current
+check "current directory conflicts with repository option" 1 \
+  'cannot combine a repository directory with --repository' \
+  "$grenadine" --repository "$empty_repo" --current "$empty_repo"
+check "current plain inventory rejects mediator" 1 \
+  '--mediator is only valid with --add.*--current with items' \
+  "$grenadine" --mediator newest --current
+
+write_pom "$resolve_repo" demo unknown 1.0.0 ''
+unknown_deps="$temporary/unknown-deps.edn"
+printf '{:mvn/local-repo "%s" :mvn/repos {"central" {:url "%s"} "clojars" {:url "%s"}} :deps {demo/unknown {:mvn/version "1.0.0"}}}\n' \
+  "$resolve_repo" "$server_url" "$server_url" > "$unknown_deps"
+check "current warns and continues when metadata is unavailable" 0 \
+  'warning: cannot determine latest version for demo/unknown' \
+  "$grenadine" --current "$unknown_deps"
+
 mixed_deps="$temporary/mixed-deps.edn"
 printf '{:mvn/local-repo "%s" :deps {demo/root {:mvn/version "1.0.0"}}}\n' \
   "$resolve_repo" > "$mixed_deps"
 check_exact "mixed source and name use last root" 0 \
-  $'demo/branch 1.0.0\ndemo/c 1.0.0\ndemo/root 1.0.0' \
+  $'demo/branch  1.0.0\ndemo/c       1.0.0\ndemo/root    1.0.0' \
   "$grenadine" --expand "$mixed_deps" demo/c 1.0.0
 
 for artifact in branch/1.0.0/branch-1.0.0 c/1.0.0/c-1.0.0 \
@@ -361,10 +463,10 @@ mkdir -p "$local_lib/src"
 printf '{:paths ["src"] :deps {}}\n' > "$local_lib/deps.edn"
 printf '{:deps {example/local {:local/root "./local-lib"}}}\n' > "$deps_file"
 check_exact "expand local coordinate" 0 \
-  "example/local $local_lib" \
+  "example/local  $local_lib" \
   "$grenadine" --expand "$deps_file"
 check_exact "list local coordinate" 0 \
-  $'example/local '"$local_lib"$'\n=> Installed: 1  Missing: 0  Total: 1' \
+  $'example/local  '"$local_lib"$'\n=> Installed: 1  Missing: 0  Total: 1' \
   "$grenadine" --list "$deps_file"
 check_exact "add local coordinate" 0 \
   '=> Installed: 0  Already: 1  Total: 1' \

@@ -3,6 +3,7 @@
 ```text
 Usage: grenadine
        grenadine [OPTIONS] --list [ITEM...]
+       grenadine [OPTIONS] --current [ITEM...]
        grenadine [OPTIONS] [-M MODE] --add ITEM...
        grenadine [OPTIONS] --delete ITEM...
        grenadine [OPTIONS] [-M MODE] --remove ITEM...
@@ -16,6 +17,9 @@ An `ITEM` is either `NAME [VERSION]` or a local/remote deps source. Operations
 accept mixed item lists. Bare `grenadine` prints the same help as `--help`;
 operands without an explicit operation are rejected.
 
+`--list` and `--current` also accept one Maven repository directory in place
+of an item list.
+
 ## Options
 
 | Short | Long | Behavior |
@@ -24,6 +28,7 @@ operands without an explicit operation are rejected.
 | `-G DIR` | `--gitlibs DIR` | Use this tools.gitlibs-compatible Git cache. |
 | `-M MODE` | `--mediator MODE` | Use `newest`, `nearest`, or `tools-deps`. |
 | | `--list` | List the repository or report an expanded graph's local status. |
+| | `--current` | List installed or selected dependencies and available updates. |
 | | `--add` | Expand and install all selected dependencies. |
 | | `--delete` | Delete only explicitly requested coordinates. |
 | | `--remove` | Expand inputs and delete their complete dependency closures. |
@@ -66,7 +71,12 @@ summary.
 ```sh
 grenadine --list
 grenadine -R my-m2 --list
+grenadine --list ~/.m2/repository
 ```
+
+A repository directory operand is equivalent to selecting the inventory root
+directly. It must be the only item and cannot be combined with
+`-R/--repository`.
 
 With items, `--list` composes and expands them like `--expand`, then checks
 whether each selected Maven JAR, Git checkout, or local path exists:
@@ -76,14 +86,47 @@ grenadine -M nearest --list deps.edn org.example/library 2.0.0
 ```
 
 ```text
-demo/branch 1.0.0
-demo/core 2.0.0 MISSING
-demo/root 1.0.0
+demo/branch  1.0.0
+demo/core    2.0.0  MISSING
+demo/root    1.0.0
 => Installed: 2  Missing: 1  Total: 3
 ```
 
 POMs may be cached during expansion, but cached metadata does not count as an
 installed JAR.
+
+Coordinate reports use two spaces between aligned columns.
+
+## Current versions
+
+With no items or with one Maven repository directory, `--current` inventories
+the selected local repository like `--list`. With dependency items, it expands
+and mediates them like `--expand`:
+
+```sh
+grenadine --current
+grenadine --current ~/.m2/repository
+grenadine --current deps.edn org.example/library 2.0.0
+grenadine -M nearest --current deps.edn
+```
+
+For each Maven library, Grenadine checks the configured remote repositories
+and prints a third column only when a newer Maven-compatible version is
+available. Dependency sources can supply custom `:mvn/repos`; inventory mode
+uses Central followed by Clojars. Git and local coordinates are printed but do
+not have update checks.
+
+```text
+org.clojure/core.specs.alpha    0.4.74
+org.clojure/math.combinatorics  0.3.0    0.3.1
+org.clojure/spec.alpha          0.5.238
+org.clojure/tools.reader        1.6.0    1.7.2
+rewrite-clj/rewrite-clj         1.2.55
+```
+
+Failed metadata lookups leave the output row unchanged, emit one warning per
+library, and do not make the command fail. Repositories are only read;
+`--current` does not install or modify dependencies.
 
 ## Add and expand
 
@@ -150,9 +193,10 @@ nearest    Select the shortest path, then declaration order
 tools-deps Preserve direct dependencies; otherwise select newest (default)
 ```
 
-`-M/--mediator` is valid with `--add`, `--expand`, `--remove`, and `--list`
-when list items are supplied. It is rejected with plain `--list`, `--delete`,
-and `--mediators`. The `--mediators` operation does not accept other options.
+`-M/--mediator` is valid with `--add`, `--expand`, `--remove`, and with
+`--list` or `--current` when dependency items are supplied. It is rejected
+with repository inventory, `--delete`, and `--mediators`. The `--mediators`
+operation does not accept other options.
 
 ## Input format
 

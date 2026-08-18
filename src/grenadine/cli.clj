@@ -7,12 +7,14 @@
             [grenadine.host.glojure :as glojure-host]
             [grenadine.lock :as lock]
             [grenadine.repo :as repo]
-            [grenadine.source :as source]))
+            [grenadine.source :as source]
+            [grenadine.version :as version]))
 
 (def usage
   (str
    "Usage: grenadine\n"
    "       grenadine [OPTIONS] --list [ITEM...]\n"
+   "       grenadine [OPTIONS] --current [ITEM...]\n"
    "       grenadine [OPTIONS] [-M MODE] --add ITEM...\n"
    "       grenadine [OPTIONS] --delete ITEM...\n"
    "       grenadine [OPTIONS] [-M MODE] --remove ITEM...\n"
@@ -20,12 +22,14 @@
    "       grenadine --mediators\n"
    "       grenadine --help\n"
    "       grenadine --version\n\n"
-   "ITEM is NAME [VERSION] or a local/remote DEPS-SOURCE.\n\n"
+   "ITEM is NAME [VERSION] or a local/remote DEPS-SOURCE.\n"
+   "--list and --current also accept a Maven repository DIR.\n\n"
    "Options:\n"
    "  -R, --repository DIR  Use this Maven repository\n"
    "  -G, --gitlibs DIR     Use this Git library cache\n"
    "  -M, --mediator MODE   Use newest, nearest, or tools-deps\n"
    "      --list            List the repository or an expanded graph\n"
+   "      --current         List installed or selected dependency updates\n"
    "      --add             Install an expanded dependency graph\n"
    "      --delete          Delete only explicitly requested coordinates\n"
    "      --remove          Delete complete expanded dependency closures\n"
@@ -57,6 +61,9 @@
 
         (= "--list" argument)
         (recur (next remaining) (assoc options :list true))
+
+        (= "--current" argument)
+        (recur (next remaining) (assoc options :current true))
 
         (= "--add" argument)
         (recur (next remaining) (assoc options :add true))
@@ -201,6 +208,26 @@
       (fail! (str "cannot list " directory ": " (fmt.Sprint error))))
     entries))
 
+(defn- pad-right [value width]
+  (str value (apply str (repeat (- width (count value)) " "))))
+
+(defn- table-lines [rows]
+  (let [first-width (apply max 0 (map #(count (first %)) rows))
+        second-width (apply max 0 (map #(count (second %)) rows))]
+    (mapv
+     (fn [[first-column second-column third-column]]
+       (str (pad-right first-column first-width)
+            "  "
+            (if third-column
+              (str (pad-right second-column second-width)
+                   "  " third-column)
+              second-column)))
+     rows)))
+
+(defn- print-table! [rows]
+  (doseq [line (table-lines rows)]
+    (fmt.Fprintln os.Stdout line)))
+
 (defn- repository-coordinates [root]
   (letfn
    [(walk [directory parts]
@@ -231,9 +258,10 @@
   (let [host (glojure-host/host)
         local-repo (repo/local-repo {:host host :local-repo repository})]
     (when-not quiet
-      (doseq [{:keys [group artifact version]}
-              (repository-coordinates local-repo)]
-        (fmt.Fprintln os.Stdout (str group "/" artifact " " version))))))
+      (print-table!
+       (mapv (fn [{:keys [group artifact version]}]
+               [(str group "/" artifact) version])
+             (repository-coordinates local-repo))))))
 
 (defn- repo-id [value]
   (cond
@@ -467,22 +495,27 @@
                      vec)]
     (assoc input :basis basis :entries entries)))
 
+(defn- coordinate-row
+  [lib coordinate]
+  [(str lib)
+   (case (coordinate/coordinate-type coordinate)
+     :mvn (:mvn/version coordinate)
+     :git (or (:git/tag coordinate)
+              (subs (:git/sha coordinate)
+                    0 (min 12 (count (:git/sha coordinate)))))
+     :local (:local/root coordinate))])
+
 (defn- coordinate-line
   [lib coordinate]
-  (case (coordinate/coordinate-type coordinate)
-    :mvn (str lib " " (:mvn/version coordinate))
-    :git (str lib " "
-              (or (:git/tag coordinate)
-                  (subs (:git/sha coordinate)
-                        0 (min 12 (count (:git/sha coordinate))))))
-    :local (str lib " " (:local/root coordinate))))
+  (str/join " " (coordinate-row lib coordinate)))
 
 (defn- print-expansion!
   [{:keys [quiet] :as parsed}]
   (let [{:keys [basis entries]} (expand-result parsed)]
     (when-not quiet
-      (doseq [[lib coordinate] entries]
-        (fmt.Fprintln os.Stdout (coordinate-line lib coordinate)))
+      (print-table! (mapv (fn [[lib coordinate]]
+                            (coordinate-row lib coordinate))
+                          entries))
       (doseq [warning (:grenadine/warnings basis)]
         (fmt.Fprintln os.Stderr
                       (str "grenadine: warning: " (pr-str warning)))))))
@@ -518,10 +551,11 @@
         installed (count (filter second statuses))
         missing (- (count statuses) installed)]
     (when-not quiet
-      (doseq [[[lib coordinate] present?] statuses]
-        (fmt.Fprintln os.Stdout
-                      (str (coordinate-line lib coordinate)
-                           (when-not present? " MISSING"))))
+      (print-table!
+       (mapv (fn [[[lib coordinate] present?]]
+               (cond-> (coordinate-row lib coordinate)
+                 (not present?) (conj "MISSING")))
+             statuses))
       (doseq [warning (:grenadine/warnings basis)]
         (fmt.Fprintln os.Stderr
                       (str "grenadine: warning: " (pr-str warning))))
@@ -529,6 +563,113 @@
                     (str "=> Installed: " installed
                          "  Missing: " missing
                          "  Total: " (count statuses))))))
+
+(defn- directory-operand
+  [operands host operation]
+  (let [directories (filter #((:directory? host) %) operands)]
+    (when (seq directories)
+      (when-not (and (= 1 (count operands)) (= 1 (count directories)))
+        (fail! (str operation
+                    " accepts a Maven repository directory only as its "
+                    "single item")))
+      (first directories))))
+
+(defn- inventory-options
+  [parsed host operation]
+  (if-let [directory (directory-operand (:operands parsed) host operation)]
+    (do
+      (when (:repository parsed)
+        (fail! (str operation
+                    " cannot combine a repository directory with "
+                    "--repository")))
+      (assoc parsed :repository directory :operands []))
+    parsed))
+
+(defn- list!
+  [parsed]
+  (let [host (glojure-host/host)
+        parsed (inventory-options parsed host "--list")]
+    (if (empty? (:operands parsed))
+      (do
+        (when (:mediator parsed)
+          (fail! "--mediator is only valid with --list when dependency items are supplied"))
+        (list-repository! parsed))
+      (list-expanded! parsed))))
+
+(defn- current-rows
+  [entries {:keys [host repos]}]
+  (let [cache (atom {})
+        warnings (atom [])
+        rows
+        (mapv
+         (fn [[lib coordinate]]
+           (let [row (coordinate-row lib coordinate)]
+             (if (= :mvn (coordinate/coordinate-type coordinate))
+               (let [[group artifact] (coordinate/split-lib lib)
+                     key [group artifact]
+                     result
+                     (if (contains? @cache key)
+                       (get @cache key)
+                       (let [result
+                             (try
+                               {:version
+                                (repo/latest-version
+                                 {:group group :artifact artifact}
+                                 {:host host :repos repos})}
+                               (catch Exception error
+                                 {:error (fmt.Sprint error)}))]
+                         (swap! cache assoc key result)
+                         (when-let [message (:error result)]
+                           (swap! warnings conj
+                                  {:name (str group "/" artifact)
+                                   :message message}))
+                         result))
+                     latest (:version result)]
+                 (if (and latest
+                          (version/newer? latest (:mvn/version coordinate)))
+                   (conj row latest)
+                   row))
+               row)))
+         entries)]
+    {:rows rows :warnings @warnings}))
+
+(defn- print-current!
+  [entries options basis-warnings]
+  (let [{:keys [rows warnings]} (current-rows entries options)]
+    (print-table! rows)
+    (doseq [warning basis-warnings]
+      (fmt.Fprintln os.Stderr
+                    (str "grenadine: warning: " (pr-str warning))))
+    (doseq [{:keys [name message]} warnings]
+      (fmt.Fprintln os.Stderr
+                    (str "grenadine: warning: cannot determine latest "
+                         "version for " name ": " message)))))
+
+(defn- inventory-entries
+  [root]
+  (mapv
+   (fn [{:keys [group artifact version]}]
+     [(symbol (str group "/" artifact)) {:mvn/version version}])
+   (repository-coordinates root)))
+
+(defn- current!
+  [{:keys [quiet] :as parsed}]
+  (let [host (glojure-host/host)
+        parsed (inventory-options parsed host "--current")]
+    (if (empty? (:operands parsed))
+      (do
+        (when (:mediator parsed)
+          (fail! "--mediator is only valid with --current when items are supplied"))
+        (when-not quiet
+          (let [root (repo/local-repo
+                      {:host host :local-repo (:repository parsed)})]
+            (print-current!
+             (inventory-entries root)
+             {:host host :repos lock/default-repos}
+             []))))
+      (let [{:keys [options basis entries]} (expand-result parsed)]
+        (when-not quiet
+          (print-current! entries options (:grenadine/warnings basis)))))))
 
 (defn- absolute-path [value]
   (let [[absolute error] (path:filepath.Abs value)]
@@ -699,11 +840,12 @@
 (defn -main [& argv]
   (try
     (github.com:glojurelang:glojure:pkg:stdlib:clojure:core:protocols.LoadNS)
-    (let [{:keys [help version list add delete remove expand mediators operands
-                  repository]
+    (let [{:keys [help version list current add delete remove expand mediators
+                  operands repository]
            :as parsed}
           (parse-options argv)
-          modes (filter identity [list add delete remove expand mediators])
+          modes (filter identity
+                        [list current add delete remove expand mediators])
           mediation (mediation-strategy (:mediator parsed))
           options (assoc parsed
                          :mediation mediation)]
@@ -712,13 +854,15 @@
         version (fmt.Fprintln os.Stdout
                               (str "grenadine v" build-info/version))
         (> (count modes) 1)
-        (fail! (str "--list, --add, --delete, --remove, --expand, and "
-                    "--mediators "
+        (fail! (str "--list, --current, --add, --delete, --remove, "
+                    "--expand, and --mediators "
                     "are mutually exclusive"))
         (and (:mediator parsed)
-             (not (or add remove expand (and list (seq operands)))))
+             (not (or add remove expand
+                      (and list (seq operands))
+                      (and current (seq operands)))))
         (fail! (str "--mediator is only valid with --add, --remove, "
-                    "--expand, or --list with items"))
+                    "--expand, --list with items, or --current with items"))
         mediators
         (cond
           (seq operands) (fail! "--mediators does not accept items")
@@ -726,9 +870,8 @@
           (:gitlibs parsed) (fail! "--mediators does not use --gitlibs")
           (:quiet parsed) (fail! "--mediators does not use --quiet")
           :else (list-mediators! options))
-        list (if (seq operands)
-               (list-expanded! options)
-               (list-repository! options))
+        list (list! options)
+        current (current! options)
         add (if (empty? operands)
               (fail! "--add requires at least one item")
               (add! options))
