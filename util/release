@@ -246,8 +246,8 @@ preflight_new_release() {
       echo "release: could not fetch origin/main" >&2
       exit 1
     }
-    [[ $(git rev-parse HEAD) == $(git rev-parse origin/main) ]] || {
-      echo "release: local main must exactly match origin/main before the version bump" >&2
+    git merge-base --is-ancestor origin/main HEAD || {
+      echo "release: origin/main contains commits not in local main" >&2
       exit 1
     }
   fi
@@ -352,7 +352,7 @@ publish() {
     }
   fi
 
-  make test oracle
+  make JOLT_SOURCE_DIR= test oracle
   validate_jar
   make release-dist VERSION="$version"
   "$top/.cache/release/bin/linux_amd64/grenadine" --version |

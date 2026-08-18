@@ -244,6 +244,9 @@ and `GRENADINE_ORACLE_CASES`.
 
 `make release VERSION=X.Y.Z` publishes the Clojars artifact, native archives,
 website, and Homebrew formulas.
+The release gate uses the pinned Jolt release rather than an adjacent checkout.
+Local `main` may be ahead of `origin/main`; after validation and deployment, the
+workflow pushes the release commit and tag to `origin` atomically.
 To publish or retry only the Homebrew tap after the GitHub release assets exist:
 
 ```sh

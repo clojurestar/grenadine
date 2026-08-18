@@ -18,6 +18,7 @@ origin="$temporary/origin.git"
 fake_bin="$temporary/bin"
 secrets="$temporary/publish-secrets.yaml"
 missing_token="$temporary/missing-token.yaml"
+make_log="$temporary/make.log"
 
 mkdir -p "$repo/util" "$repo/www/docs" "$repo/test" "$fake_bin"
 cp "$top/Changes" "$top/Makefile" "$top/ReadMe.md" \
@@ -36,12 +37,19 @@ git -C "$repo" config --unset user.name
 git init --quiet --bare "$origin"
 git -C "$repo" remote add origin "$origin"
 git -C "$repo" push --quiet --set-upstream origin main
+remote_before=$(git -C "$repo" rev-parse origin/main)
 
 # Effective identities need not come from an explicit user.name config key.
 export GIT_AUTHOR_NAME='Release Test'
 export GIT_COMMITTER_NAME='Release Test'
 
-printf '#!/usr/bin/env bash\nexit 1\n' > "$fake_bin/make"
+printf 'local main release candidate\n' > "$repo/local-change"
+git -C "$repo" add local-change
+git -C "$repo" commit --quiet -m 'Local release candidate'
+
+# shellcheck disable=SC2016  # $* and $MAKE_LOG belong to the generated script.
+printf '#!/usr/bin/env bash\nprintf "%%s\\n" "$*" >> "$MAKE_LOG"\nexit 1\n' \
+  > "$fake_bin/make"
 chmod 0755 "$fake_bin/make"
 printf 'clojure:\n  user: fixture-user\n  token: fixture-token\n' > "$secrets"
 printf 'clojure:\n  user: fixture-user\n' > "$missing_token"
@@ -54,6 +62,7 @@ run_release() {
       YQ="$yq" \
       CLOJARS_USERNAME=ignored-incomplete-environment \
       PUBLISH_SECRETS="$secrets" \
+      MAKE_LOG="$make_log" \
       RELEASE_SKIP_CLOJARS_GROUP_CHECK=1 \
       "$release" release "$version"
   )
@@ -69,6 +78,8 @@ expect_failure() {
 }
 
 expect_failure validation-stop run_release
+grep -Fqx 'JOLT_SOURCE_DIR= test oracle' "$make_log"
+[[ $(git --git-dir="$origin" rev-parse refs/heads/main) == "$remote_before" ]]
 [[ $(git -C "$repo" log -1 --format=%s) == "Release $version" ]]
 grep -Fqx "GRENADINE-VERSION := $version" "$repo/Makefile"
 grep -q "^- version: $version\$" "$repo/Changes"
