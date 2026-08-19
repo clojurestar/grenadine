@@ -1,0 +1,117 @@
+#!/usr/bin/env bash
+
+_grenadine_get_main() (
+  set -euo pipefail
+
+  local release_url=${GRENADINE_RELEASE_URL:-https://github.com/clojurestar/grenadine/releases/latest/download}
+  local system machine os arch platform extension checksums line checksum archive
+  local cache_parent cache_root release_name archive_path marker executable actual
+
+  command -v curl >/dev/null || {
+    echo "grenadine get: curl is required" >&2
+    return 1
+  }
+
+  system=$(uname -s)
+  machine=$(uname -m)
+  case $system in
+    Linux) os=linux ;;
+    Darwin) os=darwin ;;
+    FreeBSD) os=freebsd ;;
+    OpenBSD) os=openbsd ;;
+    NetBSD) os=netbsd ;;
+    MINGW*|MSYS*|CYGWIN*) os=windows ;;
+    *) echo "grenadine get: unsupported system: $system" >&2; return 1 ;;
+  esac
+  case $machine in
+    x86_64|amd64) arch=amd64 ;;
+    arm64|aarch64) arch=arm64 ;;
+    armv6|armv6l) arch=armv6 ;;
+    *) echo "grenadine get: unsupported architecture: $machine" >&2; return 1 ;;
+  esac
+  [[ $arch != armv6 || $os == linux ]] || {
+    echo "grenadine get: armv6 is supported only on Linux" >&2
+    return 1
+  }
+
+  platform=${os}_${arch}
+  if [[ $os == windows ]]; then extension=.zip; else extension=.tar.gz; fi
+  checksums=$(curl -fsSL "$release_url/grenadine-checksums.txt")
+  line=$(awk -v suffix="-$platform$extension" \
+    '$2 ~ (suffix "$" ) { print; exit }' <<< "$checksums")
+  [[ -n $line ]] || {
+    echo "grenadine get: release has no archive for $platform" >&2
+    return 1
+  }
+  checksum=${line%%[[:space:]]*}
+  archive=${line##*[[:space:]]}
+  archive=${archive#\*}
+
+  release_name=${archive%"$extension"}
+  cache_parent="/tmp/grenadine-get-${UID:-$(id -u)}"
+  cache_root="$cache_parent/$release_name"
+  archive_path="$cache_root/$archive"
+  marker="$cache_root/.sha256"
+  mkdir -p "$cache_root"
+  chmod 0700 "$cache_parent" "$cache_root" 2>/dev/null || true
+
+  if [[ ! -f $marker || $(< "$marker") != "$checksum" ]]; then
+    rm -rf "$cache_root"
+    mkdir -p "$cache_root"
+    archive_path="$cache_root/$archive"
+    marker="$cache_root/.sha256"
+    curl -fsSL "$release_url/$archive" -o "$archive_path"
+    if command -v sha256sum >/dev/null; then
+      actual=$(sha256sum "$archive_path" | awk '{print $1}')
+    elif command -v shasum >/dev/null; then
+      actual=$(shasum -a 256 "$archive_path" | awk '{print $1}')
+    elif command -v sha256 >/dev/null; then
+      actual=$(sha256 -q "$archive_path")
+    elif command -v cksum >/dev/null && cksum -a sha256 "$archive_path" >/dev/null 2>&1; then
+      actual=$(cksum -a sha256 "$archive_path" | awk '{print $1}')
+    elif command -v openssl >/dev/null; then
+      actual=$(openssl dgst -sha256 "$archive_path" | awk '{print $NF}')
+    else
+      echo "grenadine get: no SHA-256 command is available" >&2
+      return 1
+    fi
+    actual=$(printf '%s' "$actual" | tr '[:upper:]' '[:lower:]')
+    checksum=$(printf '%s' "$checksum" | tr '[:upper:]' '[:lower:]')
+    [[ $actual == "$checksum" ]] || {
+      echo "grenadine get: checksum mismatch for $archive" >&2
+      return 1
+    }
+    if [[ $extension == .zip ]]; then
+      command -v unzip >/dev/null || {
+        echo "grenadine get: unzip is required on Windows" >&2
+        return 1
+      }
+      unzip -q "$archive_path" -d "$cache_root"
+    else
+      tar -xzf "$archive_path" -C "$cache_root"
+    fi
+    printf '%s\n' "$checksum" > "$marker"
+  fi
+
+  if [[ $os == windows ]]; then
+    executable=$(find "$cache_root" -type f -name grenadine.exe -print -quit)
+  else
+    executable=$(find "$cache_root" -type f -name grenadine -print -quit)
+  fi
+  [[ -n $executable ]] || {
+    echo "grenadine get: archive did not contain the executable" >&2
+    return 1
+  }
+  chmod 0755 "$executable" 2>/dev/null || true
+  "$executable" --version >/dev/null || {
+    echo "grenadine get: downloaded executable failed its version check" >&2
+    return 1
+  }
+  printf '%s\n' "$executable"
+)
+
+if ! _grenadine_get_main "$@"; then
+  printf '%s\n' false
+fi
+
+unset -f _grenadine_get_main 2>/dev/null || true

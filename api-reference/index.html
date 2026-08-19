@@ -1,0 +1,1382 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Portable Maven dependency resolution for Clojure dialects">
+      
+      
+        <meta name="author" content="Ingy dot Net">
+      
+      
+        <link rel="canonical" href="https://clojurestar.github.io/grenadine/api-reference/">
+      
+      
+        <link rel="prev" href="../library-guide/">
+      
+      
+        <link rel="next" href="../runtime-integrations/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Core API Reference - Grenadine</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="deep-orange" data-md-color-accent="amber">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#core-api-reference" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Grenadine" class="md-header__button md-logo" aria-label="Grenadine" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 16.5c0 .38-.21.71-.53.88l-7.9 4.44c-.16.12-.36.18-.57.18s-.41-.06-.57-.18l-7.9-4.44A.99.99 0 0 1 3 16.5v-9c0-.38.21-.71.53-.88l7.9-4.44c.16-.12.36-.18.57-.18s.41.06.57.18l7.9 4.44c.32.17.53.5.53.88zM12 4.15l-1.89 1.07L16 8.61l1.96-1.11zM6.04 7.5 12 10.85l1.96-1.1-5.88-3.4zM5 15.91l6 3.38v-6.71L5 9.21zm14 0v-6.7l-6 3.37v6.71z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Grenadine
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Core API Reference
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="deep-orange" data-md-color-accent="amber"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="deep-orange" data-md-color-accent="amber"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/clojurestar/grenadine" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    clojurestar/grenadine
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Grenadine" class="md-nav__button md-logo" aria-label="Grenadine" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 16.5c0 .38-.21.71-.53.88l-7.9 4.44c-.16.12-.36.18-.57.18s-.41-.06-.57-.18l-7.9-4.44A.99.99 0 0 1 3 16.5v-9c0-.38.21-.71.53-.88l7.9-4.44c.16-.12.36-.18.57-.18s.41.06.57.18l7.9 4.44c.32.17.53.5.53.88zM12 4.15l-1.89 1.07L16 8.61l1.96-1.11zM6.04 7.5 12 10.85l1.96-1.1-5.88-3.4zM5 15.91l6 3.38v-6.71L5 9.21zm14 0v-6.7l-6 3.37v6.71z"/></svg>
+
+    </a>
+    Grenadine
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/clojurestar/grenadine" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    clojurestar/grenadine
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Library
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Library
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../library-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Core API Reference
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Core API Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#high-level-operations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        High-level operations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="High-level operations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#calc-basis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        calc-basis
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#expand-deps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        expand-deps
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#install" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        install!
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#effective-pom" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        effective-pom
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#resolve-graph" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        resolve-graph
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#model-and-lock-operations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Model and lock operations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Model and lock operations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#parse-pom" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        parse-pom
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#interpolate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        interpolate
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#emit-lock" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        emit-lock
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fetch-lock" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        fetch-lock!
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lock-classpath" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        lock-&gt;classpath
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#prepare-source-roots" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        prepare-source-roots!
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#custom-host-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Custom host contract
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../runtime-integrations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Runtime Integrations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Command Line
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Command Line
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cli-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../troubleshooting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../provenance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Provenance and License
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#high-level-operations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        High-level operations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="High-level operations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#calc-basis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        calc-basis
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#expand-deps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        expand-deps
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#install" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        install!
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#effective-pom" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        effective-pom
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#resolve-graph" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        resolve-graph
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#model-and-lock-operations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Model and lock operations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Model and lock operations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#parse-pom" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        parse-pom
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#interpolate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        interpolate
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#emit-lock" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        emit-lock
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fetch-lock" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        fetch-lock!
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lock-classpath" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        lock-&gt;classpath
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#prepare-source-roots" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        prepare-source-roots!
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#custom-host-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Custom host contract
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="core-api-reference">Core API reference<a class="headerlink" href="#core-api-reference" title="Permanent link">&para;</a></h1>
+<p>The supported portable API is exposed by <code>grenadine.core</code>.
+Lower-level namespaces implement it and should not be required for ordinary
+use.
+Embedding dialects and tools supply a host map providing platform effects.</p>
+<h2 id="high-level-operations">High-level operations<a class="headerlink" href="#high-level-operations" title="Permanent link">&para;</a></h2>
+<h3 id="calc-basis"><code>calc-basis</code><a class="headerlink" href="#calc-basis" title="Permanent link">&para;</a></h3>
+<div class="language-clojure highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="p">(</span><span class="nf">calc-basis</span><span class="w"> </span><span class="nv">deps-map</span><span class="w"> </span><span class="nv">opts</span><span class="p">)</span><span class="w"> </span><span class="c1">;=&gt; basis</span>
+</span></code></pre></div>
+<p>Resolves Maven, Git, and local coordinates and returns tools.deps-compatible
+<code>:libs</code>, <code>:classpath</code>, and <code>:classpath-roots</code> keys.
+<code>:resolve-args</code> accepts
+<code>:extra-deps</code>, <code>:override-deps</code>, and <code>:default-deps</code>; <code>:classpath-args</code> accepts
+<code>:extra-paths</code>, <code>:replace-paths</code>, and <code>:classpath-overrides</code>.
+Grenadine adds namespaced lock, procurement, warning, and source-root details.
+Unqualified Maven names, <code>artifact$classifier</code> names, and Maven version ranges
+are canonicalized before graph expansion; returned bases and locks use
+concrete versions.</p>
+<h3 id="expand-deps"><code>expand-deps</code><a class="headerlink" href="#expand-deps" title="Permanent link">&para;</a></h3>
+<div class="language-clojure highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="p">(</span><span class="nf">expand-deps</span><span class="w"> </span><span class="nv">deps</span><span class="w"> </span><span class="nv">opts</span><span class="p">)</span><span class="w"> </span><span class="c1">;=&gt; expansion</span>
+</span></code></pre></div>
+<p>Runs portable tools.deps-style tree expansion for arbitrary coordinate types.
+The required <code>:coord-id</code>, <code>:coord-deps</code>, and <code>:compare-versions</code> functions
+identify a coordinate, return its child dependency entries, and order two
+coordinates for the same library.
+<code>:known-coordinate?</code> and <code>:base-lib</code> may customize validation and exclusion
+matching.</p>
+<p><code>:override-deps</code> replaces coordinates at every occurrence, <code>:default-deps</code>
+fills missing coordinates, and <code>:trace? true</code> includes the traversal log and
+version map.
+The result contains selected <code>:libs</code>, stable first-inclusion
+<code>:order</code>, structured <code>:warnings</code>, and optional <code>:trace</code>.
+<code>:on-warning</code> receives
+each warning as it occurs.</p>
+<h3 id="install"><code>install!</code><a class="headerlink" href="#install" title="Permanent link">&para;</a></h3>
+<div class="language-clojure highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="p">(</span><span class="nf">install!</span><span class="w"> </span><span class="nv">deps</span><span class="w"> </span><span class="nv">opts</span><span class="p">)</span><span class="w"> </span><span class="c1">;=&gt; result</span>
+</span></code></pre></div>
+<p>Resolves and installs a deps.edn-style Maven, Git, and local dependency map.
+Important options:</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>:host</code></td>
+<td>Required effect-function map unless all repository stages are replaced.</td>
+</tr>
+<tr>
+<td><code>:mediation</code></td>
+<td><code>:newest</code>, <code>:nearest</code>, or <code>:tools-deps</code>.</td>
+</tr>
+<tr>
+<td><code>:repos</code></td>
+<td>Ordered remote repositories; defaults to Central and Clojars.</td>
+</tr>
+<tr>
+<td><code>:local-repo</code></td>
+<td>Maven repository path.</td>
+</tr>
+<tr>
+<td><code>:gitlibs-dir</code></td>
+<td>tools.gitlibs-compatible Git cache path.</td>
+</tr>
+<tr>
+<td><code>:base-dir</code></td>
+<td>Directory for relative local coordinates.</td>
+</tr>
+<tr>
+<td><code>:include-optional?</code></td>
+<td>Include optional transitive dependencies.</td>
+</tr>
+<tr>
+<td><code>:exclusions</code></td>
+<td>Global exclusions as symbols, strings, or coordinate maps.</td>
+</tr>
+<tr>
+<td><code>:provided-libs</code></td>
+<td>Library symbols satisfied by the host without selection, acquisition, or transitive expansion.</td>
+</tr>
+<tr>
+<td><code>:source-roots?</code></td>
+<td>Extract installed JARs and return source roots.</td>
+</tr>
+<tr>
+<td><code>:source-libs</code></td>
+<td>Restrict extraction to a set of library symbols.</td>
+</tr>
+<tr>
+<td><code>:on-install</code></td>
+<td>Callback invoked after each newly installed artifact.</td>
+</tr>
+<tr>
+<td><code>:fetch-pom</code></td>
+<td>Coordinate-to-POM function replacing repository POM lookup.</td>
+</tr>
+<tr>
+<td><code>:pom-fn</code></td>
+<td>Coordinate-to-effective-POM function replacing model construction.</td>
+</tr>
+</tbody>
+</table>
+<p>The result contains:</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>:classpath</code></td>
+<td>Local JAR paths in lock order.</td>
+</tr>
+<tr>
+<td><code>:fetched</code></td>
+<td>Artifacts downloaded by this call.</td>
+</tr>
+<tr>
+<td><code>:cached</code></td>
+<td>Artifacts already present locally.</td>
+</tr>
+<tr>
+<td><code>:source-roots</code></td>
+<td>Extracted roots, or <code>nil</code> when extraction was not requested.</td>
+</tr>
+<tr>
+<td><code>:lock</code></td>
+<td>Enriched deterministic lock data.</td>
+</tr>
+<tr>
+<td><code>:resolution</code></td>
+<td>Full graph-resolution result.</td>
+</tr>
+<tr>
+<td><code>:basis</code></td>
+<td>Complete tools.deps-shaped basis.</td>
+</tr>
+<tr>
+<td><code>:warnings</code></td>
+<td>Resolution and repository warnings.</td>
+</tr>
+</tbody>
+</table>
+<p>Artifact or extraction failures throw <code>ExceptionInfo</code> with type
+<code>:grenadine.core/install-failed</code> or <code>:grenadine.core/extraction-failed</code> and a
+<code>:failed</code> vector in <code>ex-data</code>.</p>
+<h3 id="effective-pom"><code>effective-pom</code><a class="headerlink" href="#effective-pom" title="Permanent link">&para;</a></h3>
+<div class="language-clojure highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="p">(</span><span class="nf">effective-pom</span><span class="w"> </span><span class="nv">coords</span><span class="w"> </span><span class="nv">opts</span><span class="p">)</span><span class="w"> </span><span class="c1">;=&gt; effective-model</span>
+</span></code></pre></div>
+<p>Builds one effective POM.
+<code>coords</code> is a map containing <code>:group</code>, <code>:artifact</code>, and <code>:version</code>.
+Supply either <code>:fetch-pom</code> or repository options including a host.
+The returned model contains <code>:coords</code>, <code>:packaging</code>, <code>:properties</code>,
+<code>:dep-management</code>, and <code>:deps</code>.</p>
+<h3 id="resolve-graph"><code>resolve-graph</code><a class="headerlink" href="#resolve-graph" title="Permanent link">&para;</a></h3>
+<div class="language-clojure highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="p">(</span><span class="nf">resolve-graph</span><span class="w"> </span><span class="nv">deps</span><span class="w"> </span><span class="nv">opts</span><span class="p">)</span><span class="w"> </span><span class="c1">;=&gt; resolution</span>
+</span></code></pre></div>
+<p>Resolves and mediates without installing.
+Supply <code>:pom-fn</code>, <code>:fetch-pom</code>, or a repository-backed host.
+The result contains <code>:selected</code>, <code>:graph</code>, <code>:omitted</code>,
+<code>:warnings</code>, and <code>:occurrences</code>.</p>
+<h2 id="model-and-lock-operations">Model and lock operations<a class="headerlink" href="#model-and-lock-operations" title="Permanent link">&para;</a></h2>
+<h3 id="parse-pom"><code>parse-pom</code><a class="headerlink" href="#parse-pom" title="Permanent link">&para;</a></h3>
+<div class="language-clojure highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="p">(</span><span class="nf">parse-pom</span><span class="w"> </span><span class="nv">xml-text</span><span class="p">)</span><span class="w"> </span><span class="c1">;=&gt; raw-model</span>
+</span></code></pre></div>
+<p>Parses Maven POM XML into Grenadine's canonical raw model without inheritance
+or interpolation.</p>
+<h3 id="interpolate"><code>interpolate</code><a class="headerlink" href="#interpolate" title="Permanent link">&para;</a></h3>
+<div class="language-clojure highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="p">(</span><span class="nf">interpolate</span><span class="w"> </span><span class="nv">text</span><span class="w"> </span><span class="nv">properties</span><span class="p">)</span><span class="w"> </span><span class="c1">;=&gt; string</span>
+</span></code></pre></div>
+<p>Interpolates Maven-style <code>${property}</code> references.
+Property cycles are
+reported as structured exceptions.</p>
+<h3 id="emit-lock"><code>emit-lock</code><a class="headerlink" href="#emit-lock" title="Permanent link">&para;</a></h3>
+<div class="language-clojure highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="p">(</span><span class="nf">emit-lock</span><span class="w"> </span><span class="nv">resolution</span><span class="w"> </span><span class="nv">opts</span><span class="p">)</span><span class="w"> </span><span class="c1">;=&gt; lock</span>
+</span></code></pre></div>
+<p>The low-level Maven graph form produces a stable version 1 lock for backward
+compatibility.
+<code>calc-basis</code> and <code>install!</code> emit version 2 locks containing all
+selected Maven, Git, and local libraries.
+<code>:repos</code> controls the repository list, and <code>:integrity</code> may supply GAV-keyed
+SHA-256 and size values.</p>
+<h3 id="fetch-lock"><code>fetch-lock!</code><a class="headerlink" href="#fetch-lock" title="Permanent link">&para;</a></h3>
+<div class="language-clojure highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="p">(</span><span class="nf">fetch-lock!</span><span class="w"> </span><span class="nv">lock</span><span class="w"> </span><span class="nv">opts</span><span class="p">)</span><span class="w"> </span><span class="c1">;=&gt; fetch-result</span>
+</span></code></pre></div>
+<p>Installs every lock artifact.
+Returns <code>:lock</code>, <code>:fetched</code>, <code>:cached</code>, <code>:failed</code>,
+and <code>:warnings</code>; this lower-level function reports failures as data.</p>
+<h3 id="lock-classpath"><code>lock-&gt;classpath</code><a class="headerlink" href="#lock-classpath" title="Permanent link">&para;</a></h3>
+<div class="language-clojure highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="p">(</span><span class="nf">lock-&gt;classpath</span><span class="w"> </span><span class="nv">lock</span><span class="w"> </span><span class="p">{</span><span class="ss">:local-repo</span><span class="w"> </span><span class="s">"/path/to/m2"</span>
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="w">                       </span><span class="ss">:gitlibs-dir</span><span class="w"> </span><span class="s">"/path/to/gitlibs"</span><span class="p">})</span><span class="w"> </span><span class="c1">;=&gt; [paths...]</span>
+</span></code></pre></div>
+<p>Returns Maven artifact, Git checkout, and local coordinate paths without
+touching the filesystem.
+Version 1 Maven locks remain supported.</p>
+<h3 id="prepare-source-roots"><code>prepare-source-roots!</code><a class="headerlink" href="#prepare-source-roots" title="Permanent link">&para;</a></h3>
+<div class="language-clojure highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="p">(</span><span class="nf">prepare-source-roots!</span><span class="w"> </span><span class="nv">lock</span><span class="w"> </span><span class="nv">opts</span><span class="p">)</span><span class="w"> </span><span class="c1">;=&gt; {:roots [...] :failed [...]}</span>
+</span></code></pre></div>
+<p>Extracts installed JARs into digest-keyed directories.
+The host is responsible
+for safe and atomic archive extraction.</p>
+<h2 id="custom-host-contract">Custom host contract<a class="headerlink" href="#custom-host-contract" title="Permanent link">&para;</a></h2>
+<p>A host is a map of effect functions.
+Repository-backed installation uses:</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Contract</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>:http-get</code></td>
+<td>URL to <code>{:status integer :headers map :body bytes}</code>.</td>
+</tr>
+<tr>
+<td><code>:read-bytes</code></td>
+<td>Path to bytes.</td>
+</tr>
+<tr>
+<td><code>:write-bytes!</code></td>
+<td>Path and bytes to a write effect.</td>
+</tr>
+<tr>
+<td><code>:bytes-&gt;utf8</code></td>
+<td>Bytes to text.</td>
+</tr>
+<tr>
+<td><code>:digest</code></td>
+<td><code>:sha1</code> or <code>:sha256</code> and bytes to lowercase hexadecimal text.</td>
+</tr>
+<tr>
+<td><code>:byte-count</code></td>
+<td>Bytes to integer size.</td>
+</tr>
+<tr>
+<td><code>:exists?</code></td>
+<td>Path existence predicate.</td>
+</tr>
+<tr>
+<td><code>:mkdirs!</code></td>
+<td>Create a directory tree.</td>
+</tr>
+<tr>
+<td><code>:atomic-move!</code></td>
+<td>Move a completed temporary path into place.</td>
+</tr>
+<tr>
+<td><code>:delete!</code></td>
+<td>Remove a path.</td>
+</tr>
+<tr>
+<td><code>:home-dir</code></td>
+<td>Zero-argument home directory lookup.</td>
+</tr>
+<tr>
+<td><code>:getenv</code></td>
+<td>Environment lookup used for repository configuration.</td>
+</tr>
+<tr>
+<td><code>:extract-jar!</code></td>
+<td>Safely extract a JAR to a destination. Required only for source roots.</td>
+</tr>
+</tbody>
+</table>
+<p>Missing required functions produce <code>:grenadine.repo/incomplete-host</code> with the
+missing key in <code>ex-data</code>.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; 2026 Ingy dot Net
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.top", "search.suggest", "search.highlight", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
