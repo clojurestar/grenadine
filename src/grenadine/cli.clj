@@ -339,31 +339,37 @@
   (if (source/remote? input) "." (path:filepath.Dir input)))
 
 (defn- input-coordinate
-  [coordinate input]
+  [lib coordinate input quiet]
   (if-let [root (:local/root coordinate)]
     (do
-      (when (and (source/remote? input)
-                 (not (path:filepath.IsAbs root)))
-        (fail! (str input " contains a relative :local/root")))
-      (assoc coordinate :local/root
-             (if (path:filepath.IsAbs root)
-               root
-               (path:filepath.Join (source-base-dir input) root))))
+      (if (and (source/remote? input)
+               (not (path:filepath.IsAbs root)))
+        (do
+          (when-not quiet
+            (fmt.Fprintln
+             os.Stderr
+             (str "grenadine: warning: skipping " lib " from " input
+                  ": relative :local/root " (pr-str root))))
+          nil)
+        (assoc coordinate :local/root
+               (if (path:filepath.IsAbs root)
+                 root
+                 (path:filepath.Join (source-base-dir input) root)))))
     coordinate))
 
 (defn- dependency-request
-  [lib coordinate input]
+  [lib coordinate input quiet]
   (let [request (library-coordinate (str lib))]
     (when-not (map? coordinate)
       (fail! (str input " dependency " lib " must use a coordinate map")))
-    (let [coordinate (input-coordinate coordinate input)]
-    (assoc request
-           :version (:mvn/version coordinate)
-           :coordinate coordinate
-           :input input))))
+    (when-let [coordinate (input-coordinate lib coordinate input quiet)]
+      (assoc request
+             :version (:mvn/version coordinate)
+             :coordinate coordinate
+             :input input))))
 
 (defn- input-bundle
-  [operands host]
+  [operands host quiet]
   (reduce
    (fn [bundle item]
      (if (= :library (:kind item))
@@ -371,8 +377,9 @@
        (let [input (:source item)
              config (read-config input host)
              requests
-             (mapv (fn [[lib coordinate]]
-                     (dependency-request lib coordinate input))
+             (into []
+                   (keep (fn [[lib coordinate]]
+                           (dependency-request lib coordinate input quiet)))
                    (:deps config))]
          (cond-> (-> bundle
                      (update :requests into requests)
@@ -473,7 +480,7 @@
 (defn- graph-input
   [parsed]
   (let [host (glojure-host/host)
-        bundle (input-bundle (:operands parsed) host)]
+        bundle (input-bundle (:operands parsed) host (:quiet parsed))]
     {:host host
      :bundle bundle
      :deps (resolved-deps bundle host)
@@ -732,7 +739,7 @@
 (defn- delete!
   [{:keys [quiet] :as parsed}]
   (let [host (glojure-host/host)
-        bundle (input-bundle (:operands parsed) host)
+        bundle (input-bundle (:operands parsed) host quiet)
         root (absolute-path
               (repo/local-repo
                {:host host
@@ -757,7 +764,7 @@
 (defn- remove!
   [{:keys [quiet] :as parsed}]
   (let [host (glojure-host/host)
-        bundle (input-bundle (:operands parsed) host)
+        bundle (input-bundle (:operands parsed) host quiet)
         _ (validate-maven-removal! (:requests bundle))
         options (operation-options parsed bundle host)
         root (absolute-path (repo/local-repo options))

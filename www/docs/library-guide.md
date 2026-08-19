@@ -64,9 +64,10 @@ must match that prefix. Common GitHub, GitLab, Bitbucket, Codeberg, Beanstalk,
 and SourceHut URLs can be inferred from reverse-domain library names.
 
 Relative local roots are resolved from a filesystem-backed deps file that
-declares them and then canonicalized. A remote HTTP deps source must use
-absolute local roots; Grenadine does not check out the source repository to
-materialize adjacent directories. Git and local directories must contain
+declares them and then canonicalized. Grenadine warns and skips relative local
+roots in remote HTTP deps sources because it does not check out the source
+repository to materialize adjacent directories. Other dependencies in the
+source continue to resolve. Git and local directories must contain
 `deps.edn` or `pom.xml`; `deps.edn` wins when both exist. Use
 `:deps/manifest :deps` or `:deps/manifest :pom` to choose explicitly.
 `:deps/root` selects a safe nested project root. Local JAR coordinates read

@@ -21,13 +21,13 @@ selected concrete POM and artifact must still exist.
 It does not replace an
 unavailable `-SNAPSHOT` with a nearby release or prerelease.
 
-## A remote deps source contains a relative local root
+## A remote deps source skips a relative local root
 
 Remote HTTP sources are fetched as individual files, not as repository
-checkouts, so Grenadine cannot materialize a relative `:local/root`.
-Use a
-filesystem-backed deps source, an absolute root, or a Git coordinate for the
-dependency.
+checkouts, so Grenadine cannot materialize a relative `:local/root`. It warns,
+skips that dependency, and continues resolving the rest of the source. Use a
+filesystem-backed deps source, an absolute root, or a Git coordinate when the
+skipped dependency is needed.
 
 For an isolated installation, select an explicit directory:
 

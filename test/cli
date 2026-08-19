@@ -299,6 +299,14 @@ start_http_server "$current_remote"
 current_deps="$temporary/current-deps.edn"
 printf '{:mvn/local-repo "%s" :mvn/repos {"central" {:url "%s"} "clojars" {:url "%s"}} :deps {demo/root {:mvn/version "1.0.0"}}}\n' \
   "$resolve_repo" "$server_url" "$server_url" > "$current_deps"
+remote_relative_deps="$current_remote/relative-local.edn"
+printf '{:mvn/local-repo "%s" :deps {example/local {:local/root "./local-lib"} demo/root {:mvn/version "1.0.0"}}}\n' \
+  "$resolve_repo" > "$remote_relative_deps"
+check_exact "remote relative local root warns and continues" 0 \
+  $'grenadine: warning: skipping example/local from '"${server_url}relative-local.edn"$': relative :local/root "./local-lib"\ndemo/branch  1.0.0\ndemo/c       2.0.0\ndemo/root    1.0.0' \
+  "$grenadine" --expand "${server_url}relative-local.edn"
+check_empty "quiet remote relative local root continues" 0 \
+  "$grenadine" --quiet --expand "${server_url}relative-local.edn"
 check_exact "current expanded graph aligns available updates" 0 \
   $'demo/branch  1.0.0\ndemo/c       2.0.0  2.1.0\ndemo/root    1.0.0  1.1.0' \
   "$grenadine" --current "$current_deps"

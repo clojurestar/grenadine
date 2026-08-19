@@ -212,8 +212,9 @@ The source must contain an EDN map. Missing `:deps` means an empty dependency
 set. Coordinates may use `:mvn/version`, `:git/url` with `:git/sha`, or
 `:local/root`. Git and local directory coordinates require `deps.edn` or
 `pom.xml`; `:deps/root` and `:deps/manifest` refine where and how that manifest
-is read. Relative `:local/root` values require a local deps source; remote HTTP
-sources must use absolute roots. Unqualified Maven names mean `name/name`,
+is read. Relative `:local/root` values require a local deps source; Grenadine
+warns and skips them in remote HTTP sources while continuing with the other
+dependencies. Unqualified Maven names mean `name/name`,
 classifiers use `group/artifact$classifier`, and Maven version ranges are
 resolved to concrete versions before expansion. Direct Git/local map syntax is
 intentionally not parsed as CLI items; put those coordinates in a local or
