@@ -331,10 +331,19 @@ check_exact "mixed project and name use last root" 0 \
   $'demo/c     2.0.0\ndemo/root  1.0.0' \
   "$grenadine" --expand "${server_url}project.clj" demo/c 2.0.0
 
+opaque_version_project="$temporary/opaque-version-project.clj"
+printf '(defproject demo/opaque #=(clojure.string/trim #=(slurp "resources/VERSION")) :local-repo "%s" :dependencies [[demo/c "1.0.0"]])\n' \
+  "$resolve_repo" \
+  > "$opaque_version_project"
+check_exact "project version form is ignored without evaluation" 0 \
+  "demo/c  1.0.0" \
+  "$grenadine" --expand "$opaque_version_project"
+
 unsafe_project="$temporary/unsafe-project.clj"
-printf '(defproject demo/unsafe #=(os.Exit 77) :dependencies [])\n' \
+printf '(defproject demo/unsafe "1.0.0" :dependencies #=(os.Exit 77))\n' \
   > "$unsafe_project"
-check "project reader evaluation is disabled" 1 'cannot parse' \
+check "project reader evaluation is disabled in consumed fields" 1 \
+  'cannot parse' \
   "$grenadine" --expand "$unsafe_project"
 
 dynamic_project="$temporary/dynamic-project.clj"

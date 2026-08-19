@@ -242,12 +242,13 @@ literal `defproject`:
     :exclusions [example/legacy]]])
 ```
 
-Grenadine reads only the project name, version, `:dependencies`,
-`:repositories`, `:local-repo`, and project-level `:exclusions`. Dependency
-IDs may be symbols or strings. Dependency options support `:classifier`,
-`:exclusions`, `:extension "jar"`, `:scope "compile"` or `"runtime"`,
-`:optional`, and `:native-prefix`; the last two do not change dependency
-selection.
+Grenadine reads the project name, ignores the project version form, and reads
+only `:dependencies`, `:repositories`, `:local-repo`, and project-level
+`:exclusions`. The version form is never evaluated, so projects that compute
+their own version can still be expanded. Dependency IDs may be symbols or
+strings. Dependency options support `:classifier`, `:exclusions`,
+`:extension "jar"`, `:scope "compile"` or `"runtime"`, `:optional`, and
+`:native-prefix`; the last two do not change dependency selection.
 
 Project files are parsed as data with reader evaluation disabled. Grenadine
 does not load Leiningen, execute project code, merge profiles or user

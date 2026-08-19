@@ -38,11 +38,11 @@ grenadine --repository=/tmp/grenadine-m2 --install deps.edn
 ## A project.clj value is rejected
 
 Grenadine's CLI reads a safe, literal subset of `project.clj`; it does not run
-Leiningen or evaluate project code. The project name and version must be
-literal, and `:dependencies`, `:repositories`, `:local-repo`, and
-`:exclusions` must use literal values in the supported shapes. Profiles,
-managed dependencies, plugins, and reader evaluation are intentionally not
-applied.
+Leiningen or evaluate project code. The project name must be literal. The
+project version form is ignored without evaluation, while `:dependencies`,
+`:repositories`, `:local-repo`, and `:exclusions` must use literal values in
+the supported shapes. Profiles, managed dependencies, plugins, and reader
+evaluation are intentionally not applied.
 
 Use a generated deps.edn source when dependency selection relies on dynamic
 forms, profile merging, user configuration, or managed dependency versions.

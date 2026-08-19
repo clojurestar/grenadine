@@ -561,14 +561,10 @@
       (project-error! input "must start with defproject"))
     (when (< (count sources) 3)
       (project-error! input "defproject requires a project name and version"))
-    (let [[_ name-source version-source & argument-sources] sources
-          project-name (safe-read input name-source)
-          project-version (safe-read input version-source)]
+    (let [[_ name-source _version-source & argument-sources] sources
+          project-name (safe-read input name-source)]
       (when-not (or (symbol? project-name) (string? project-name))
         (project-error! input "defproject requires a literal project name"))
-      (when-not (and (string? project-version)
-                     (not (str/blank? project-version)))
-        (project-error! input "defproject requires a literal version string"))
       (when (odd? (count argument-sources))
         (project-error! input "defproject must contain keyword/value pairs"))
       (let [project
