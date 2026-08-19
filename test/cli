@@ -195,6 +195,8 @@ check "version" 0 "^grenadine v${version_pattern}$" "$grenadine" --version
 check "removed version shortcut" 1 'unknown option: -V' "$grenadine" -V
 check "help" 0 '^Usage: grenadine' "$grenadine" --help
 help_output=$("$grenadine" --help)
+check_empty "help omits deprecated add alias" 1 \
+  grep -F -- '--add' <<< "$help_output"
 check_exact "no arguments show help" 0 "$help_output" "$grenadine"
 check "unknown option" 1 'unknown option: --wat' "$grenadine" --wat
 check "removed repo option" 1 'unknown option: --repo' "$grenadine" --repo=somewhere
@@ -221,8 +223,8 @@ check_exact "list repository directory item" 0 \
 check_empty "quiet list" 0 \
   "$grenadine" --quiet --repository="$list_repo" --list
 check "operation conflict" 1 \
-  '--list, --current, --add, --delete, --remove, --expand, and --mediators are mutually exclusive' \
-  "$grenadine" --list --add org.example/demo 1.0.0
+  '--list, --current, --install, --delete, --remove, --expand, and --mediators are mutually exclusive' \
+  "$grenadine" --list --install org.example/demo 1.0.0
 
 check_exact "list mediation strategies" 0 \
   $'newest     Select the highest Maven-compatible version\nnearest    Select the shortest path, then declaration order\ntools-deps Preserve direct dependencies; otherwise select newest (default)' \
@@ -381,12 +383,12 @@ check_empty "current empty selected repository" 0 \
 check_empty "current empty repository directory item" 0 \
   "$grenadine" --current "$empty_repo"
 check "current operation conflict" 1 \
-  '--list, --current, --add' "$grenadine" --list --current
+  '--list, --current, --install' "$grenadine" --list --current
 check "current directory conflicts with repository option" 1 \
   'cannot combine a repository directory with --repository' \
   "$grenadine" --repository "$empty_repo" --current "$empty_repo"
 check "current plain inventory rejects mediator" 1 \
-  '--mediator is only valid with --add.*--current with items' \
+  '--mediator is only valid with --install.*--current with items' \
   "$grenadine" --mediator newest --current
 
 write_pom "$resolve_repo" demo unknown 1.0.0 ''
@@ -414,19 +416,27 @@ check_exact "remove expanded closure" 0 \
 check_empty "remove leaves unselected version" 0 \
   test -e "$resolve_repo/demo/c/1.0.0/c-1.0.0.jar"
 
-add_repo="$temporary/add repo"
-seed_repo "$add_repo"
-check_exact "add explicit version" 0 \
+install_repo="$temporary/install repo"
+seed_repo "$install_repo"
+check_exact "install explicit version" 0 \
   '=> Installed: 0  Already: 1  Total: 1' \
-  "$grenadine" --mediator=newest --repository "$add_repo" \
+  "$grenadine" --mediator=newest --repository "$install_repo" \
+    --install org.example/demo 1.0.0
+check_empty "quiet install" 0 \
+  "$grenadine" --quiet --repository "$install_repo" \
+    --install org.example/demo 1.0.0
+check "deprecated add alias warns and installs" 0 \
+  'warning: --add is deprecated; use --install' \
+  "$grenadine" --repository "$install_repo" \
     --add org.example/demo 1.0.0
-check_empty "quiet add" 0 \
-  "$grenadine" --quiet --repository "$add_repo" \
+check "quiet deprecated add alias still warns" 0 \
+  'warning: --add is deprecated; use --install' \
+  "$grenadine" --quiet --repository "$install_repo" \
     --add org.example/demo 1.0.0
-check "add requires an item" 1 '--add requires at least one item' \
-  "$grenadine" --add
-check "add rejects unreadable source" 1 'cannot read missing.edn' \
-  "$grenadine" --add missing.edn
+check "install requires an item" 1 '--install requires at least one item' \
+  "$grenadine" --install
+check "install rejects unreadable source" 1 'cannot read missing.edn' \
+  "$grenadine" --install missing.edn
 
 remove_repo="$temporary/remove repo"
 seed_list_repo "$remove_repo"
@@ -485,44 +495,44 @@ seed_repo "$explicit_repo"
 write_deps "$deps_file"
 check "long repository option" 0 '^=> Installed: 0  Already: 1  Total: 1$' \
   "$grenadine" --mediator=nearest "--repository=$explicit_repo" \
-    --add "$deps_file"
+    --install "$deps_file"
 check "short repository option" 0 '^=> Installed: 0  Already: 1  Total: 1$' \
-  "$grenadine" -R "$explicit_repo" --add "$deps_file"
+  "$grenadine" -R "$explicit_repo" --install "$deps_file"
 check_empty "short quiet option" 0 \
-  "$grenadine" -q -R "$explicit_repo" --add "$deps_file"
+  "$grenadine" -q -R "$explicit_repo" --install "$deps_file"
 check_empty "long quiet option" 0 \
-  "$grenadine" --quiet --repository "$explicit_repo" --add "$deps_file"
+  "$grenadine" --quiet --repository "$explicit_repo" --install "$deps_file"
 
 file_repo="$temporary/file repo"
 seed_repo "$file_repo"
 write_deps "$deps_file" "$file_repo"
 check "deps file repository" 0 '^=> Installed: 0  Already: 1  Total: 1$' \
-  "$grenadine" --add "$deps_file"
+  "$grenadine" --install "$deps_file"
 
 environment_repo="$temporary/environment repo"
 seed_repo "$environment_repo"
 write_deps "$deps_file"
 check "environment repository" 0 '^=> Installed: 0  Already: 1  Total: 1$' \
   env GRENADINE_MAVEN_REPOSITORY="$environment_repo" \
-  "$grenadine" --add "$deps_file"
+    "$grenadine" --install "$deps_file"
 
 printf '[]\n' > "$deps_file"
 check "top-level map validation" 1 'must contain an EDN map' \
-  "$grenadine" --add "$deps_file"
+  "$grenadine" --install "$deps_file"
 
 printf '{:paths ["src"]}\n' > "$deps_file"
 check_exact "missing deps is empty" 0 \
   '=> Installed: 0  Already: 0  Total: 0' \
-  "$grenadine" --add "$deps_file"
+  "$grenadine" --install "$deps_file"
 
 printf '{:deps []}\n' > "$deps_file"
 check "deps map validation" 1 ':deps must be a map' \
-  "$grenadine" --add "$deps_file"
+  "$grenadine" --install "$deps_file"
 
 printf '{:deps {org.example/demo {:git/url "https://example.invalid"}}}\n' \
   > "$deps_file"
 check "incomplete Git coordinate" 1 'requires :git/sha' \
-  "$grenadine" "--repository=$explicit_repo" --add "$deps_file"
+  "$grenadine" "--repository=$explicit_repo" --install "$deps_file"
 
 local_lib="$temporary/local-lib"
 mkdir -p "$local_lib/src"
@@ -534,9 +544,9 @@ check_exact "expand local coordinate" 0 \
 check_exact "list local coordinate" 0 \
   $'example/local  '"$local_lib"$'\n=> Installed: 1  Missing: 0  Total: 1' \
   "$grenadine" --list "$deps_file"
-check_exact "add local coordinate" 0 \
+check_exact "install local coordinate" 0 \
   '=> Installed: 0  Already: 1  Total: 1' \
-  "$grenadine" --add "$deps_file"
+  "$grenadine" --install "$deps_file"
 check "delete rejects local coordinate" 1 \
   'support only Maven coordinates' \
   "$grenadine" --delete "$deps_file"

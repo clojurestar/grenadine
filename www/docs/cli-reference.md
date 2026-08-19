@@ -4,7 +4,7 @@
 Usage: grenadine
        grenadine [OPTIONS] --list [ITEM...]
        grenadine [OPTIONS] --current [ITEM...]
-       grenadine [OPTIONS] [-M MODE] --add ITEM...
+       grenadine [OPTIONS] [-M MODE] --install ITEM...
        grenadine [OPTIONS] --delete ITEM...
        grenadine [OPTIONS] [-M MODE] --remove ITEM...
        grenadine [OPTIONS] [-M MODE] --expand ITEM...
@@ -30,7 +30,7 @@ of an item list.
 | `-M MODE` | `--mediator MODE` | Use `newest`, `nearest`, or `tools-deps`. |
 | | `--list` | List the repository or report an expanded graph's local status. |
 | | `--current` | List installed or selected dependencies and available updates. |
-| | `--add` | Expand and install all selected dependencies. |
+| | `--install` | Expand and install all selected dependencies. |
 | | `--delete` | Delete only explicitly requested coordinates. |
 | | `--remove` | Expand inputs and delete their complete dependency closures. |
 | `-X` | `--expand` | Print an expanded graph without installing JARs. |
@@ -41,11 +41,13 @@ of an item list.
 
 Exactly one operation is accepted. `--repository=DIR` and
 `--mediator=MODE` are equivalent to their separated forms.
+The former `--add` spelling remains a deprecated alias for `--install`; it is
+omitted from help and emits a warning whenever it is used.
 
 ## Mixed inputs
 
 ```sh
-grenadine --add \
+grenadine --install \
   nrepl/bencode 1.1.0 \
   deps.edn \
   project.clj \
@@ -130,14 +132,14 @@ Failed metadata lookups leave the output row unchanged, emit one warning per
 library, and do not make the command fail. Repositories are only read;
 `--current` does not install or modify dependencies.
 
-## Add and expand
+## Install and expand
 
 ```sh
-grenadine --add deps.edn org.example/library
+grenadine --install deps.edn org.example/library
 grenadine -M newest --expand deps.edn org.example/library 2.0.0
 ```
 
-Both operations combine all inputs and mediate once. `--add` installs the
+Both operations combine all inputs and mediate once. `--install` installs the
 selected Maven artifacts and Git checkouts, validates local paths, and prints
 streamed installation lines plus its summary. `--expand` prints sorted
 coordinates and installs no Maven JARs. Both may cache POM metadata and procure
@@ -195,7 +197,7 @@ nearest    Select the shortest path, then declaration order
 tools-deps Preserve direct dependencies; otherwise select newest (default)
 ```
 
-`-M/--mediator` is valid with `--add`, `--expand`, `--remove`, and with
+`-M/--mediator` is valid with `--install`, `--expand`, `--remove`, and with
 `--list` or `--current` when dependency items are supplied. It is rejected
 with repository inventory, `--delete`, and `--mediators`. The `--mediators`
 operation does not accept other options.
@@ -266,4 +268,4 @@ grenadine --resolver MODE --resolve NAME
 grenadine --resolvers
 ```
 
-Use `--add`, `--expand`, `-M/--mediator`, and `--mediators` instead.
+Use `--install`, `--expand`, `-M/--mediator`, and `--mediators` instead.

@@ -62,16 +62,16 @@ brew install clojurestar/grenadine/grenadine
 Use an installed `grenadine` binary like this:
 
 ```sh
-grenadine --add deps.edn
-grenadine --repository=my-m2 --add deps.edn
-grenadine --quiet --add deps.edn
+grenadine --install deps.edn
+grenadine --repository=my-m2 --install deps.edn
+grenadine --quiet --install deps.edn
 grenadine --list
 grenadine --list ~/.m2/repository
 grenadine --list deps.edn
 grenadine --expand project.clj
 grenadine --current
 grenadine --current deps.edn
-grenadine --add nrepl/bencode 1.1.0 clj-commons/clj-yaml
+grenadine --install nrepl/bencode 1.1.0 clj-commons/clj-yaml
 grenadine --delete nrepl/bencode 1.1.0
 grenadine --remove clj-commons/clj-yaml
 grenadine --expand org.yamlscript/ys.v0
@@ -84,7 +84,7 @@ grenadine --version
 HTTP and HTTPS URLs are accepted directly, including GitHub `blob` links:
 
 ```sh
-grenadine --repository=my-m2 --add \
+grenadine --repository=my-m2 --install \
   https://github.com/seancorfield/honeysql/blob/develop/deps.edn
 ```
 

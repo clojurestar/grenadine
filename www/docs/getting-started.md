@@ -37,19 +37,19 @@ Given a `deps.edn` file:
 an installed binary populates the standard Maven repository with:
 
 ```sh
-grenadine --add deps.edn
+grenadine --install deps.edn
 ```
 
 To use another repository:
 
 ```sh
-grenadine --repository=my-m2 --add deps.edn
+grenadine --repository=my-m2 --install deps.edn
 ```
 
 Or use a deps.edn URL:
 
 ```sh
-grenadine --repository=my-m2 --add \
+grenadine --repository=my-m2 --install \
   https://github.com/seancorfield/honeysql/blob/develop/deps.edn
 ```
 
@@ -66,12 +66,12 @@ Only literal top-level dependencies and repository settings are read. See the
 [CLI reference](cli-reference.md#literal-projectclj-input) for the supported
 subset.
 
-You can also add coordinates directly.
+You can also install coordinates directly.
 A version is optional; without one,
 Grenadine installs the latest Maven release:
 
 ```sh
-grenadine --add nrepl/bencode 1.1.0 \
+grenadine --install nrepl/bencode 1.1.0 \
   clj-commons/clj-yaml org.flatland/ordered
 ```
 
@@ -104,7 +104,7 @@ grenadine --mediators
 You can also run the latest release without installing `grenadine` on your PATH:
 
 ```sh
-$ $(source <(curl -sL clojurestar.github.io/grenadine/get)) --add \
+$ $(source <(curl -sL clojurestar.github.io/grenadine/get)) --install \
   https://github.com/seancorfield/honeysql/blob/develop/deps.edn
 Installed org.clojure/clojure 1.10.3
 Installed org.clojure/core.specs.alpha 0.2.56

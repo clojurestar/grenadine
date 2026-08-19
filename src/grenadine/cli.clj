@@ -15,7 +15,7 @@
    "Usage: grenadine\n"
    "       grenadine [OPTIONS] --list [ITEM...]\n"
    "       grenadine [OPTIONS] --current [ITEM...]\n"
-   "       grenadine [OPTIONS] [-M MODE] --add ITEM...\n"
+   "       grenadine [OPTIONS] [-M MODE] --install ITEM...\n"
    "       grenadine [OPTIONS] --delete ITEM...\n"
    "       grenadine [OPTIONS] [-M MODE] --remove ITEM...\n"
    "       grenadine [OPTIONS] [-M MODE] --expand ITEM...\n"
@@ -30,7 +30,7 @@
    "  -M, --mediator MODE   Use newest, nearest, or tools-deps\n"
    "      --list            List the repository or an expanded graph\n"
    "      --current         List installed or selected dependency updates\n"
-   "      --add             Install an expanded dependency graph\n"
+   "      --install         Install an expanded dependency graph\n"
    "      --delete          Delete only explicitly requested coordinates\n"
    "      --remove          Delete complete expanded dependency closures\n"
    "  -X, --expand          Expand dependencies without installing JARs\n"
@@ -65,8 +65,12 @@
         (= "--current" argument)
         (recur (next remaining) (assoc options :current true))
 
+        (= "--install" argument)
+        (recur (next remaining) (assoc options :install true))
+
         (= "--add" argument)
-        (recur (next remaining) (assoc options :add true))
+        (recur (next remaining)
+               (assoc options :install true :deprecated-add true))
 
         (= "--delete" argument)
         (recur (next remaining) (assoc options :delete true))
@@ -811,7 +815,7 @@
      :deps (resolved-deps bundle host)
      :options (operation-options parsed bundle host)}))
 
-(defn- add!
+(defn- install!
   [{:keys [quiet] :as parsed}]
   (let [{:keys [deps options]} (graph-input parsed)]
     (install-deps! deps (assoc options :quiet quiet))))
@@ -1172,12 +1176,16 @@
 (defn -main [& argv]
   (try
     (github.com:glojurelang:glojure:pkg:stdlib:clojure:core:protocols.LoadNS)
-    (let [{:keys [help version list current add delete remove expand mediators
-                  operands repository]
+    (let [{:keys [help version list current install delete remove expand mediators
+                  operands repository deprecated-add]
            :as parsed}
           (parse-options argv)
+          _ (when deprecated-add
+              (fmt.Fprintln
+               os.Stderr
+               "grenadine: warning: --add is deprecated; use --install"))
           modes (filter identity
-                        [list current add delete remove expand mediators])
+                        [list current install delete remove expand mediators])
           mediation (mediation-strategy (:mediator parsed))
           options (assoc parsed
                          :mediation mediation)]
@@ -1186,14 +1194,14 @@
         version (fmt.Fprintln os.Stdout
                               (str "grenadine v" build-info/version))
         (> (count modes) 1)
-        (fail! (str "--list, --current, --add, --delete, --remove, "
+        (fail! (str "--list, --current, --install, --delete, --remove, "
                     "--expand, and --mediators "
                     "are mutually exclusive"))
         (and (:mediator parsed)
-             (not (or add remove expand
+             (not (or install remove expand
                       (and list (seq operands))
                       (and current (seq operands)))))
-        (fail! (str "--mediator is only valid with --add, --remove, "
+        (fail! (str "--mediator is only valid with --install, --remove, "
                     "--expand, --list with items, or --current with items"))
         mediators
         (cond
@@ -1204,9 +1212,9 @@
           :else (list-mediators! options))
         list (list! options)
         current (current! options)
-        add (if (empty? operands)
-              (fail! "--add requires at least one item")
-              (add! options))
+        install (if (empty? operands)
+                  (fail! "--install requires at least one item")
+                  (install! options))
         delete (if (empty? operands)
                  (fail! "--delete requires at least one item")
                  (delete! options))

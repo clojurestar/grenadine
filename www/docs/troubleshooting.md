@@ -32,7 +32,7 @@ skipped dependency is needed.
 For an isolated installation, select an explicit directory:
 
 ```sh
-grenadine --repository=/tmp/grenadine-m2 --add deps.edn
+grenadine --repository=/tmp/grenadine-m2 --install deps.edn
 ```
 
 ## A project.clj value is rejected
