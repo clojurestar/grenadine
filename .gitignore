@@ -1,4 +1,5 @@
 /.cache/
+/.jolt/
 /.cpcache/
 /*.clj
 /bindings/
