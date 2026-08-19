@@ -1,3 +1,8 @@
+- version: 0.1.9
+  date:    Tue Aug 18 10:16:41 PM EDT 2026
+  changes:
+  - Warn on remote relative local roots
+
 - version: 0.1.8
   date:    Tue Aug 18 07:13:02 PM EDT 2026
   changes:

@@ -19,7 +19,7 @@ locks, and prepares source roots for non-JVM runtimes.
 Grenadine publishes a vendorable source JAR to Clojars as:
 
 ```text
-cc.clojure/grenadine:0.1.8
+cc.clojure/grenadine:0.1.9
 ```
 
 The artifact does not declare a Clojure runtime dependency.
