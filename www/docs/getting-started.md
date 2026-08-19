@@ -21,7 +21,7 @@ Portable programs use the same facade in either runtime:
 Use `glojure.deps` or `jolt.deps` for backend-specific operations and result
 data.
 Dialect and tool authors can obtain the vendorable source artifact as
-`cc.clojure/grenadine:0.1.10` or use a release source archive.
+`cc.clojure/grenadine:0.1.11` or use a release source archive.
 
 See the [Library guide](library-guide.md) for the resolution pipeline and the
 [Core API reference](api-reference.md) for every public operation.
