@@ -43,8 +43,9 @@ Dialect-facing facades add familiar `add-lib`, `add-libs`, `add-deps`, and
 
 Grenadine also ships as a native command compiled with
 [Gloat](https://gloathub.org/).
-It is useful when you want to install the dependencies from a local or remote
-`deps.edn` by hand, without first running a Clojure dialect or a JVM.
+It is useful when you want to install dependencies from a local or remote
+`deps.edn` or literal `project.clj` by hand, without first running a Clojure
+dialect or a JVM.
 
 Install the latest release on Bash or Zsh:
 
@@ -67,6 +68,7 @@ grenadine --quiet --add deps.edn
 grenadine --list
 grenadine --list ~/.m2/repository
 grenadine --list deps.edn
+grenadine --expand project.clj
 grenadine --current
 grenadine --current deps.edn
 grenadine --add nrepl/bencode 1.1.0 clj-commons/clj-yaml
@@ -85,6 +87,16 @@ HTTP and HTTPS URLs are accepted directly, including GitHub `blob` links:
 grenadine --repository=my-m2 --add \
   https://github.com/seancorfield/honeysql/blob/develop/deps.edn
 ```
+
+Literal Leiningen projects are accepted through the same operations:
+
+```sh
+grenadine --expand \
+  https://github.com/yaml/yamlscript/blob/main/v0/project.clj
+```
+
+Project code and profiles are not evaluated; see the
+[supported project.clj subset](cli-reference.md#literal-projectclj-input).
 
 The command lists each newly installed dependency immediately, then prints the
 installed, already-present, and total counts.

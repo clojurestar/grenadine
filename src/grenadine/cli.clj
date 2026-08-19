@@ -22,7 +22,7 @@
    "       grenadine --mediators\n"
    "       grenadine --help\n"
    "       grenadine --version\n\n"
-   "ITEM is NAME [VERSION] or a local/remote DEPS-SOURCE.\n"
+   "ITEM is NAME [VERSION] or a local/remote DEPENDENCY-SOURCE.\n"
    "--list and --current also accept a Maven repository DIR.\n\n"
    "Options:\n"
    "  -R, --repository DIR  Use this Maven repository\n"
@@ -282,6 +282,334 @@
         extras (sort (remove (set preferred) (keys repos)))]
     (mapv repos (concat preferred extras))))
 
+(declare project-error!)
+
+(defn- source-layout?
+  [character]
+  (contains? #{\space \tab \newline \return \formfeed \,} character))
+
+(defn- skip-source-layout
+  [source start]
+  (loop [index start]
+    (if (< index (count source))
+      (let [character (.charAt source index)]
+        (cond
+          (source-layout? character) (recur (inc index))
+          (= character \;)
+          (if-let [newline (str/index-of source "\n" index)]
+            (recur (inc newline))
+            (count source))
+          :else index))
+      index)))
+
+(def ^:private source-opening-delimiters #{\( \[ \{})
+(def ^:private source-closing-delimiters #{\) \] \}})
+
+(defn- source-form-end
+  [source start]
+  (loop [index start
+         depth 0
+         string? false
+         escaped? false
+         comment? false]
+    (if (>= index (count source))
+      index
+      (let [character (.charAt source index)]
+        (cond
+          comment?
+          (recur (inc index) depth string? false
+                 (not= character \newline))
+
+          escaped?
+          (recur (inc index) depth string? false false)
+
+          string?
+          (cond
+            (= character \\)
+            (recur (inc index) depth true true false)
+
+            (= character \")
+            (recur (inc index) depth false false false)
+
+            :else
+            (recur (inc index) depth true false false))
+
+          (= character \\)
+          (recur (inc index) depth false true false)
+
+          (= character \")
+          (recur (inc index) depth true false false)
+
+          (= character \;)
+          (recur (inc index) depth false false true)
+
+          (source-opening-delimiters character)
+          (recur (inc index) (inc depth) false false false)
+
+          (source-closing-delimiters character)
+          (if (= depth 1)
+            (inc index)
+            (recur (inc index) (dec depth) false false false))
+
+          (and (zero? depth) (source-layout? character))
+          index
+
+          :else
+          (recur (inc index) depth false false false))))))
+
+(defn- next-source-form-end
+  [source start]
+  (let [end (source-form-end source start)
+        metadata-prefix?
+        (or (= \^ (.charAt source start))
+            (and (= \# (.charAt source start))
+                 (< (inc start) (count source))
+                 (= \^ (.charAt source (inc start)))))]
+    (if metadata-prefix?
+      (let [value-start (skip-source-layout source end)]
+        (if (< value-start (count source))
+          (next-source-form-end source value-start)
+          end))
+      end)))
+
+(defn- discard-marker?
+  [source start]
+  (and (< (inc start) (count source))
+       (= \# (.charAt source start))
+       (= \_ (.charAt source (inc start)))))
+
+(defn- discarded-forms-end
+  [source start]
+  (let [[count position]
+        (loop [count 0 position start]
+          (if (discard-marker? source position)
+            (recur (inc count)
+                   (skip-source-layout source (+ position 2)))
+            [count position]))]
+    (loop [remaining count position position]
+      (if (zero? remaining)
+        position
+        (let [end (next-source-form-end source position)]
+          (recur (dec remaining) (skip-source-layout source end)))))))
+
+(defn- project-form-sources
+  [input source]
+  (let [start (skip-source-layout source 0)]
+    (when (or (>= start (count source))
+              (not= \( (.charAt source start)))
+      (project-error! input "must contain a literal defproject form"))
+    (let [end (source-form-end source start)]
+      (when (or (<= end start)
+                (not= \) (.charAt source (dec end))))
+        (project-error! input "contains an unterminated defproject form"))
+      (loop [index (inc start) forms []]
+        (let [form-start (skip-source-layout source index)]
+          (if (>= form-start (dec end))
+            forms
+            (if (discard-marker? source form-start)
+              (recur (discarded-forms-end source form-start) forms)
+              (let [form-end (next-source-form-end source form-start)]
+                (recur form-end
+                       (conj forms
+                             (subs source form-start form-end)))))))))))
+
+(defn- project-error!
+  [input message]
+  (fail! (str input " " message)))
+
+(defn- literal-options
+  [input label values]
+  (when (odd? (count values))
+    (project-error! input (str label " must contain keyword/value pairs")))
+  (reduce
+   (fn [options [key value]]
+     (when-not (keyword? key)
+       (project-error! input (str label " option must be a keyword: "
+                                  (pr-str key))))
+     (assoc options key value))
+   {}
+   (partition 2 values)))
+
+(defn- project-lib
+  [input label value]
+  (when-not (or (symbol? value) (string? value))
+    (project-error! input (str label " library must be a symbol or string: "
+                               (pr-str value))))
+  (library-coordinate (str value)))
+
+(defn- project-exclusion
+  [input value]
+  (let [lib (if (vector? value) (first value) value)
+        request (project-lib input "exclusion" lib)]
+    (symbol (:group request) (:artifact request))))
+
+(defn- project-exclusions
+  [input label values]
+  (when-not (or (nil? values) (sequential? values))
+    (project-error! input (str label " must be a sequential collection")))
+  (set (map #(project-exclusion input %) (or values []))))
+
+(def ^:private project-dependency-options
+  #{:classifier :exclusions :extension :scope :optional :native-prefix})
+
+(defn- project-dependency
+  [input global-exclusions value]
+  (when-not (vector? value)
+    (project-error! input (str "dependency must be a vector: "
+                               (pr-str value))))
+  (let [[lib version & option-values] value
+        request (project-lib input "dependency" lib)]
+    (when-not (and (string? version) (not (str/blank? version)))
+      (project-error! input
+                      (str "dependency " (:name request)
+                           " requires a literal version string")))
+    (let [options (literal-options input
+                                   (str "dependency " (:name request))
+                                   option-values)
+          unknown (seq (remove project-dependency-options (keys options)))
+          classifier (:classifier options)
+          extension (:extension options)
+          scope (:scope options)]
+      (when unknown
+        (project-error! input
+                        (str "dependency " (:name request)
+                             " has unsupported options: "
+                             (str/join ", " (sort (map str unknown))))))
+      (when (and (some? classifier)
+                 (not (and (string? classifier)
+                           (re-matches component-pattern classifier))))
+        (project-error! input
+                        (str "dependency " (:name request)
+                             " has an invalid :classifier")))
+      (when-not (or (nil? extension) (= "jar" extension))
+        (project-error! input
+                        (str "dependency " (:name request)
+                             " uses unsupported :extension "
+                             (pr-str extension))))
+      (when-not (or (nil? scope) (#{"compile" "runtime"} scope))
+        (project-error! input
+                        (str "dependency " (:name request)
+                             " uses unsupported :scope " (pr-str scope))))
+      (when (and (contains? options :optional)
+                 (not (boolean? (:optional options))))
+        (project-error! input
+                        (str "dependency " (:name request)
+                             " has a non-boolean :optional")))
+      (when (and (contains? options :native-prefix)
+                 (not (string? (:native-prefix options))))
+        (project-error! input
+                        (str "dependency " (:name request)
+                             " has a non-string :native-prefix")))
+      (let [exclusions
+            (into global-exclusions
+                  (project-exclusions input
+                                      (str "dependency " (:name request)
+                                           " :exclusions")
+                                      (:exclusions options)))
+            lib (if classifier
+                  (symbol (:group request)
+                          (str (:artifact request) "$" classifier))
+                  (symbol (:group request) (:artifact request)))]
+        [lib (cond-> {:mvn/version version}
+               (seq exclusions) (assoc :exclusions exclusions))]))))
+
+(defn- project-repositories
+  [input repositories]
+  (when-not (or (nil? repositories) (sequential? repositories))
+    (project-error! input ":repositories must be a sequential collection"))
+  (reduce
+   (fn [result repository]
+     (when-not (and (vector? repository) (= 2 (count repository)))
+       (project-error! input
+                       (str "repository must be an [ID URL-OR-MAP] vector: "
+                            (pr-str repository))))
+     (let [[id settings] repository
+           url (if (string? settings) settings (:url settings))]
+       (when-not (and (or (string? id) (keyword? id) (symbol? id))
+                      (not (str/blank? (repo-id id))))
+         (project-error! input (str "repository has an invalid ID: "
+                                    (pr-str id))))
+       (when-not (and (string? url) (not (str/blank? url)))
+         (project-error! input
+                         (str "repository " (repo-id id)
+                              " requires a literal URL")))
+       (assoc result (repo-id id) {:url url})))
+   {}
+   (or repositories [])))
+
+(defn- safe-read
+  [input source]
+  (try
+    (binding [*read-eval* false]
+      (read-string source))
+    (catch Exception error
+      (fail! (str "cannot parse " input ": " (fmt.Sprint error))))))
+
+(def ^:private project-fields
+  #{:dependencies :repositories :local-repo :exclusions})
+
+(defn- project-config
+  [input source]
+  (let [sources (project-form-sources input source)
+        defproject-symbol (when-let [head (first sources)]
+                            (safe-read input head))]
+    (when-not (= 'defproject defproject-symbol)
+      (project-error! input "must start with defproject"))
+    (when (< (count sources) 3)
+      (project-error! input "defproject requires a project name and version"))
+    (let [[_ name-source version-source & argument-sources] sources
+          project-name (safe-read input name-source)
+          project-version (safe-read input version-source)]
+      (when-not (or (symbol? project-name) (string? project-name))
+        (project-error! input "defproject requires a literal project name"))
+      (when-not (and (string? project-version)
+                     (not (str/blank? project-version)))
+        (project-error! input "defproject requires a literal version string"))
+      (when (odd? (count argument-sources))
+        (project-error! input "defproject must contain keyword/value pairs"))
+      (let [project
+            (reduce
+             (fn [result [key-source value-source]]
+               (let [key (safe-read input key-source)]
+                 (when-not (keyword? key)
+                   (project-error!
+                    input
+                    (str "defproject option must be a keyword: "
+                         (pr-str key))))
+                 (if (project-fields key)
+                   (assoc result key (safe-read input value-source))
+                   result)))
+             {}
+             (partition 2 argument-sources))
+            dependencies (:dependencies project)
+            local-repo (:local-repo project)
+            global-exclusions
+            (project-exclusions input ":exclusions" (:exclusions project))]
+        (when-not (or (nil? dependencies) (vector? dependencies))
+          (project-error! input ":dependencies must be a literal vector"))
+        (when (and (contains? project :local-repo)
+                   (not (and (string? local-repo)
+                             (not (str/blank? local-repo)))))
+          (project-error! input ":local-repo must be a nonblank string"))
+        (cond->
+         {:deps (into {}
+                      (map #(project-dependency input global-exclusions %))
+                      (or dependencies []))
+          :mvn/repos (project-repositories input (:repositories project))}
+          local-repo (assoc :mvn/local-repo local-repo))))))
+
+(defn- dependency-config
+  [input content]
+  (let [start (skip-source-layout content 0)]
+    (if (and (< start (count content))
+             (= \( (.charAt content start)))
+      (project-config input content)
+      (let [form (safe-read input content)]
+        (if (map? form)
+          form
+          (fail! (str input
+                      " must contain an EDN map or literal defproject form")))))))
+
 (defn- read-config [input host]
   (let [content
         (if (source/remote? input)
@@ -290,11 +618,7 @@
             (when error
               (fail! (str "cannot read " input ": " (fmt.Sprint error))))
             (go/string content)))]
-    (let [config
-          (try
-            (read-string content)
-            (catch Exception error
-              (fail! (str "cannot parse " input ": " (fmt.Sprint error)))))]
+    (let [config (dependency-config input content)]
       (when-not (map? config)
         (fail! (str input " must contain an EDN map")))
       (when (and (contains? config :deps)
@@ -308,6 +632,7 @@
   [value host]
   (or (source/remote? value)
       (str/ends-with? (str/lower-case value) ".edn")
+      (str/ends-with? (str/lower-case value) "project.clj")
       ((:exists? host) value)))
 
 (defn- parse-items

@@ -292,6 +292,7 @@ check_empty "quiet expanded list" 0 \
     --list demo/root 1.0.0
 
 current_remote="$temporary/current-remote"
+seed_resolve_repo "$current_remote"
 write_metadata "$current_remote" demo branch 1.0.0
 write_metadata "$current_remote" demo c 2.1.0
 write_metadata "$current_remote" demo root 1.1.0
@@ -307,6 +308,63 @@ check_exact "remote relative local root warns and continues" 0 \
   "$grenadine" --expand "${server_url}relative-local.edn"
 check_empty "quiet remote relative local root continues" 0 \
   "$grenadine" --quiet --expand "${server_url}relative-local.edn"
+
+project_repo="$temporary/project repo"
+project_file="$temporary/project.clj"
+printf '(defproject demo/project "1.0.0" :local-repo "%s" :description #=(os.Exit 78) :jar-exclusions [#"^(?!demo)"] #_#_ :dependencies [[demo/root "1.0.0"]] :dependencies [[demo/c "1.0.0" :classifier "tests" :optional true :native-prefix ""]])\n' \
+  "$resolve_repo" > "$project_file"
+check_exact "expand local literal project" 0 \
+  "demo/c\$tests  1.0.0" \
+  "$grenadine" --expand "$project_file"
+check_empty "quiet local literal project" 0 \
+  "$grenadine" --quiet --expand "$project_file"
+
+remote_project="$current_remote/project.clj"
+printf '(defproject demo/remote "1.0.0" :local-repo "%s" :repositories [["central" "%s"] ["clojars" {:url "%s" :snapshots false}]] :exclusions [demo/branch] :dependencies [[demo/root "1.0.0" :optional false]])\n' \
+  "$project_repo" "$server_url" "$server_url" > "$remote_project"
+check_exact "expand remote literal project" 0 \
+  $'demo/c     1.0.0\ndemo/root  1.0.0' \
+  "$grenadine" --expand "${server_url}project.clj"
+check_exact "mixed project and name use last root" 0 \
+  $'demo/c     2.0.0\ndemo/root  1.0.0' \
+  "$grenadine" --expand "${server_url}project.clj" demo/c 2.0.0
+
+unsafe_project="$temporary/unsafe-project.clj"
+printf '(defproject demo/unsafe #=(os.Exit 77) :dependencies [])\n' \
+  > "$unsafe_project"
+check "project reader evaluation is disabled" 1 'cannot parse' \
+  "$grenadine" --expand "$unsafe_project"
+
+dynamic_project="$temporary/dynamic-project.clj"
+printf '(defproject demo/dynamic "1.0.0" :dependencies (concat [[demo/c "1.0.0"]]))\n' \
+  > "$dynamic_project"
+check "project requires literal dependencies" 1 \
+  ':dependencies must be a literal vector' \
+  "$grenadine" --expand "$dynamic_project"
+
+missing_version_project="$temporary/missing-version-project.clj"
+printf '(defproject demo/managed "1.0.0" :managed-dependencies [[demo/c "1.0.0"]] :dependencies [[demo/c]])\n' \
+  > "$missing_version_project"
+check "project requires direct literal versions" 1 \
+  'demo/c requires a literal version string' \
+  "$grenadine" --expand "$missing_version_project"
+
+unsupported_project="$temporary/unsupported-project.clj"
+printf '(defproject demo/unsupported "1.0.0" :dependencies [[demo/c "1.0.0" :extension "pom"]])\n' \
+  > "$unsupported_project"
+check "project rejects unsupported dependency options" 1 \
+  'demo/c uses unsupported :extension "pom"' \
+  "$grenadine" --expand "$unsupported_project"
+
+nonproject_file="$temporary/not-project.clj"
+printf '(ns demo.not-project)\n' > "$nonproject_file"
+check "project source requires defproject" 1 \
+  'must start with defproject' \
+  "$grenadine" --expand "$nonproject_file"
+check "missing project source is not parsed as a library" 1 \
+  'cannot read .*missing/project.clj' \
+  "$grenadine" --expand "$temporary/missing/project.clj"
+
 check_exact "current expanded graph aligns available updates" 0 \
   $'demo/branch  1.0.0\ndemo/c       2.0.0  2.1.0\ndemo/root    1.0.0  1.1.0' \
   "$grenadine" --current "$current_deps"

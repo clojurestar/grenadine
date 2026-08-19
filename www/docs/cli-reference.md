@@ -13,9 +13,10 @@ Usage: grenadine
        grenadine --version
 ```
 
-An `ITEM` is either `NAME [VERSION]` or a local/remote deps source. Operations
-accept mixed item lists. Bare `grenadine` prints the same help as `--help`;
-operands without an explicit operation are rejected.
+An `ITEM` is either `NAME [VERSION]` or a local/remote dependency source. A
+dependency source is a deps.edn-style map or a literal Leiningen
+`project.clj`. Operations accept mixed item lists. Bare `grenadine` prints the
+same help as `--help`; operands without an explicit operation are rejected.
 
 `--list` and `--current` also accept one Maven repository directory in place
 of an item list.
@@ -47,15 +48,16 @@ Exactly one operation is accepted. `--repository=DIR` and
 grenadine --add \
   nrepl/bencode 1.1.0 \
   deps.edn \
+  project.clj \
   clj-commons/clj-yaml \
   https://example.org/other-deps.edn
 ```
 
-HTTP/HTTPS URLs, existing files, and `.edn` paths are recognized as sources.
-Each qualified library name may be followed by a version; omitted versions
-select the latest Maven release. Source roots and named roots are combined in
-operand order, with a later declaration replacing an earlier declaration of
-the same library.
+HTTP/HTTPS URLs, existing files, `.edn` paths, and `project.clj` paths are
+recognized as sources. Each qualified library name may be followed by a
+version; omitted versions select the latest Maven release. Source roots and
+named roots are combined in operand order, with a later declaration replacing
+an earlier declaration of the same library.
 
 Remote repository maps are also merged in operand order. The last source-level
 `:mvn/local-repo` wins, while `-R/--repository` overrides every source.
@@ -150,10 +152,10 @@ grenadine --delete deps.edn additional-deps.edn
 ```
 
 A versioned name deletes that version. An unversioned name deletes all locally
-installed versions. A deps source contributes only its top-level `:deps`; it
-is not expanded. Multiple distinct explicit versions are accepted, but an
-all-version request cannot be combined with version-specific requests for the
-same library.
+installed versions. A dependency source contributes only its direct
+dependencies; it is not expanded. Multiple distinct explicit versions are
+accepted, but an all-version request cannot be combined with version-specific
+requests for the same library.
 
 ```text
 Deleted org.example/library 1.2.3
@@ -198,7 +200,7 @@ tools-deps Preserve direct dependencies; otherwise select newest (default)
 with repository inventory, `--delete`, and `--mediators`. The `--mediators`
 operation does not accept other options.
 
-## Input format
+## deps.edn input format
 
 ```clojure
 {:mvn/local-repo "/optional/local/repository"
@@ -219,6 +221,39 @@ classifiers use `group/artifact$classifier`, and Maven version ranges are
 resolved to concrete versions before expansion. Direct Git/local map syntax is
 intentionally not parsed as CLI items; put those coordinates in a local or
 remote deps source.
+
+## Literal project.clj input
+
+The CLI also accepts a local or remote `project.clj` whose leading form is a
+literal `defproject`:
+
+```clojure
+(defproject example/application "1.2.3"
+  :local-repo "/optional/local/repository"
+  :repositories
+  [["company" {:url "https://maven.example.com/releases/"}]]
+  :exclusions [example/unwanted]
+  :dependencies
+  [[org.clojure/data.csv "1.1.0"]
+   [example/tool "2.0.0"
+    :classifier "tests"
+    :exclusions [example/legacy]]])
+```
+
+Grenadine reads only the project name, version, `:dependencies`,
+`:repositories`, `:local-repo`, and project-level `:exclusions`. Dependency
+IDs may be symbols or strings. Dependency options support `:classifier`,
+`:exclusions`, `:extension "jar"`, `:scope "compile"` or `"runtime"`,
+`:optional`, and `:native-prefix`; the last two do not change dependency
+selection.
+
+Project files are parsed as data with reader evaluation disabled. Grenadine
+does not load Leiningen, execute project code, merge profiles or user
+configuration, resolve `:managed-dependencies`, run plugins, or use repository
+credentials and policies. Dynamic values in the fields Grenadine reads,
+dependencies without literal versions, and unsupported dependency options are
+reported as errors. Generate a deps.edn file with Leiningen tooling when the
+effective project depends on those features.
 
 ## Removed spellings
 

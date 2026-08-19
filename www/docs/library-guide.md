@@ -54,6 +54,10 @@ Grenadine accepts Maven, Git, and local coordinates in a deps.edn-style map:
   {:local/root "../local-lib"}}
 ```
 
+This map is the portable library contract. The standalone CLI additionally
+adapts literal `project.clj` files into this shape; it does not make
+`project.clj` a Git or local dependency manifest for the core API.
+
 Library names may be symbols or strings. An unqualified name uses the same
 value for the Maven group and artifact. Maven classifiers use tools.deps
 `group/artifact$classifier` syntax. Maven version ranges such as `[1.0,2.0)`

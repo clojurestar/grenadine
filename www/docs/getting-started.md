@@ -53,6 +53,19 @@ grenadine --repository=my-m2 --add \
   https://github.com/seancorfield/honeysql/blob/develop/deps.edn
 ```
 
+The CLI also accepts literal Leiningen projects without running Leiningen or
+a JVM:
+
+```sh
+grenadine --expand project.clj
+grenadine --expand \
+  https://github.com/yaml/yamlscript/blob/main/v0/project.clj
+```
+
+Only literal top-level dependencies and repository settings are read. See the
+[CLI reference](cli-reference.md#literal-projectclj-input) for the supported
+subset.
+
 You can also add coordinates directly.
 A version is optional; without one,
 Grenadine installs the latest Maven release:
