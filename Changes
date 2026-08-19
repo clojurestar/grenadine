@@ -1,3 +1,10 @@
+- version: 0.1.10
+  date:    Wed Aug 19 12:21:11 PM EDT 2026
+  changes:
+  - Ignore local Jolt state
+  - Rename --add to --install
+  - Support literal project.clj CLI inputs
+
 - version: 0.1.9
   date:    Tue Aug 18 10:16:41 PM EDT 2026
   changes:
