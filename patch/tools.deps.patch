@@ -1240,7 +1240,7 @@
 +             :trace (when trace? {:log trace :vmap version-map})}))))))
 --- a/src/grenadine/basis.cljc
 +++ b/src/grenadine/basis.cljc
-@@ -8,100 +8,39 @@
+@@ -8,100 +8,40 @@
 -
 -(ns clojure.tools.deps
 -  "API namespace for tools.deps. New dep types are defined via the multimethods
@@ -1356,7 +1356,8 @@
 +            [grenadine.graph :as graph]
 +            [grenadine.lock :as lock]
 +            [grenadine.pom :as pom]
-+            [grenadine.repo :as repo]))
++            [grenadine.repo :as repo]
++            [grenadine.tree :as tree]))
 +
 +(defn- join-path [base path]
 +  (if (or (nil? path) (= "" path))
@@ -1380,7 +1381,7 @@
 +(defn- relative-to [root path]
 +  (let [root (str/replace root #"/+$" "")
 +        prefix (str root "/")]
-@@ -109,54 +48,214 @@
+@@ -109,54 +49,214 @@
 -      ;; if adding new lib/version, include all non-excluded children
 -      include
 -      (if (nil? coord-excl)
@@ -1649,7 +1650,7 @@
 +                (swap! cache assoc key value)
 +                value))))]
 +    {:info info :pom-fn pom-fn}))
-@@ -165,254 +264,14 @@
+@@ -165,254 +265,14 @@
 -  "Get paths to selected coord of lib"
 -  [vmap lib]
 -  (get-in vmap [lib :paths (selected-version vmap lib)]))
@@ -1918,11 +1919,11 @@
 +             [lib {:parents (set (map vec paths))
 +                   :dependents (vec (distinct (keep peek paths)))}])))
 +        libs))
-@@ -420,2 +279 @@
+@@ -420,2 +280 @@
 -(defn print-tree
 -  "Print lib-map tree to the console"
 +(defn- classpath-lib-order
-@@ -423,205 +281,25 @@
+@@ -423,205 +282,25 @@
 -  (let [tree (make-tree lib-map)]
 -    (letfn [(print-node [lib indent]
 -              (let [{:keys [children] :as coord} (get tree lib)]
@@ -2153,7 +2154,7 @@
 +                            :version (:mvn/version coord)}
 +                            classifier (assoc :classifier classifier))}]))))
 +         libs)})
-@@ -630,305 +308,206 @@
+@@ -630,305 +309,213 @@
 -  "Calculates and returns the runtime basis from a merged deps edn map, modifying
 -   resolve-deps and make-classpath args as needed.
 -
@@ -2522,7 +2523,10 @@
 +                     [(coordinate/lib-symbol group artifact classifier) entry]))
 +              (:artifacts final-lock))
 +        parent-data (parents-data (:trace expansion) libs)
-+        expansion-libs (filter #(contains? libs %) (:order expansion))
++        ;; Alternate mediators can select libraries tools-deps never expanded.
++        expansion-libs (distinct (concat (filter #(contains? libs %)
++                                                 (:order expansion))
++                                         (sort-by str (keys libs))))
 +        lib-map
 +        (into {}
 +              (map
@@ -2664,4 +2668,8 @@
 +            :grenadine/resolution expansion
 +            :grenadine/source-roots
 +            (vec (concat (:roots source-extraction)
-+                         non-maven-source-roots))})))
++                         non-maven-source-roots))}
++           (when (:dependency-tree? opts)
++             {:grenadine/tree
++              (tree/dependency-graph
++               top libs (fn [lib coord] (:children (info lib coord))))}))))

@@ -27,19 +27,24 @@ checks=0
 start_http_server() {
   local root=$1 port_file="$temporary/http-port"
   rm -f "$port_file"
-  python3 - "$root" "$port_file" <<'PY' &
+  python3 - "$root" "$port_file" "$temporary/http-requests" <<'PY' &
 import functools
 import http.server
 import pathlib
 import sys
 
-root, port_file = sys.argv[1:]
+root, port_file, request_file = sys.argv[1:]
 class QuietHandler(http.server.SimpleHTTPRequestHandler):
     def log_message(self, _format, *_args):
         pass
 
     def guess_type(self, _path):
         return "application/octet-stream"
+
+    def do_GET(self):
+        with pathlib.Path(request_file).open("a", encoding="utf-8") as requests:
+            requests.write(self.path + "\n")
+        super().do_GET()
 
 handler = functools.partial(QuietHandler, directory=root)
 server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
@@ -255,28 +260,28 @@ seed_resolve_repo "$resolve_repo"
 write_pom "$resolve_repo" hiccup hiccup 1.0.5 ''
 write_pom "$resolve_repo" org.lwjgl lwjgl-stb 3.2.3 ''
 check_exact "expand unqualified legacy library" 0 \
-  'hiccup  1.0.5' \
+  '└── hiccup 1.0.5' \
   "$grenadine" --repository "$resolve_repo" --expand hiccup 1.0.5
 check_exact "expand Maven classifier" 0 \
-  "org.lwjgl/lwjgl-stb\$natives-macos  3.2.3" \
+  "└── org.lwjgl/lwjgl-stb\$natives-macos 3.2.3" \
   "$grenadine" --repository "$resolve_repo" --expand \
     "org.lwjgl/lwjgl-stb\$natives-macos" 3.2.3
 check_exact "expand defaults to tools-deps" 0 \
-  $'demo/branch  1.0.0\ndemo/c       2.0.0\ndemo/root    1.0.0' \
+  $'└── demo/root 1.0.0\n    ├── demo/branch 1.0.0\n    │   └── demo/c 2.0.0\n    └── demo/c 2.0.0 (already shown)' \
   "$grenadine" --repository "$resolve_repo" --expand demo/root 1.0.0
 check_exact "expand with nearest" 0 \
-  $'demo/branch  1.0.0\ndemo/c       1.0.0\ndemo/root    1.0.0' \
+  $'└── demo/root 1.0.0\n    ├── demo/branch 1.0.0\n    │   └── demo/c 1.0.0\n    └── demo/c 1.0.0 (already shown)' \
   "$grenadine" --repository "$resolve_repo" --mediator=nearest \
     --expand demo/root 1.0.0
 check_exact "expand with short mediator" 0 \
-  $'demo/branch  1.0.0\ndemo/c       2.0.0\ndemo/root    1.0.0' \
+  $'└── demo/root 1.0.0\n    ├── demo/branch 1.0.0\n    │   └── demo/c 2.0.0\n    └── demo/c 2.0.0 (already shown)' \
   "$grenadine" --repository "$resolve_repo" -M newest \
     --expand demo/root 1.0.0
 check_exact "expand with short option" 0 \
-  $'demo/branch  1.0.0\ndemo/c       2.0.0\ndemo/root    1.0.0' \
+  $'└── demo/root 1.0.0\n    ├── demo/branch 1.0.0\n    │   └── demo/c 2.0.0\n    └── demo/c 2.0.0 (already shown)' \
   "$grenadine" --repository "$resolve_repo" -X demo/root 1.0.0
 check_exact "tools-deps preserves direct root" 0 \
-  $'demo/branch  1.0.0\ndemo/c       1.0.0\ndemo/root    1.0.0' \
+  $'├── demo/c 1.0.0\n└── demo/root 1.0.0\n    ├── demo/branch 1.0.0\n    │   └── demo/c 1.0.0 (already shown)\n    └── demo/c 1.0.0 (already shown)' \
   "$grenadine" --repository "$resolve_repo" --mediator=tools-deps \
     --expand demo/root 1.0.0 demo/c 1.0.0
 check_empty "quiet expand" 0 \
@@ -284,6 +289,43 @@ check_empty "quiet expand" 0 \
     --expand demo/root 1.0.0
 check_empty "expand installs no jars" 0 \
   find "$resolve_repo" -name '*.jar' -print
+
+tree_repo="$temporary/tree repo"
+write_pom "$tree_repo" tree root 1.0.0 \
+  '<dependency><groupId>tree</groupId><artifactId>a</artifactId><version>1.0.0</version></dependency><dependency><groupId>tree</groupId><artifactId>b</artifactId><version>1.0.0</version></dependency><dependency><groupId>tree</groupId><artifactId>hidden</artifactId><version>1.0.0</version><scope>test</scope></dependency><dependency><groupId>tree</groupId><artifactId>optional</artifactId><version>1.0.0</version><optional>true</optional></dependency>'
+write_pom "$tree_repo" tree a 1.0.0 \
+  '<dependency><groupId>tree</groupId><artifactId>shared</artifactId><version>1.0.0</version><exclusions><exclusion><groupId>tree</groupId><artifactId>leaf</artifactId></exclusion></exclusions></dependency>'
+write_pom "$tree_repo" tree b 1.0.0 \
+  '<dependency><groupId>tree</groupId><artifactId>shared</artifactId><version>1.0.0</version></dependency>'
+write_pom "$tree_repo" tree shared 1.0.0 \
+  '<dependency><groupId>tree</groupId><artifactId>leaf</artifactId><version>1.0.0</version></dependency><dependency><groupId>tree</groupId><artifactId>root</artifactId><version>1.0.0</version></dependency>'
+write_pom "$tree_repo" tree leaf 1.0.0 ''
+for mediator in tools-deps nearest newest; do
+  check_exact "tree merges exclusions and stops cycles ($mediator)" 0 \
+    $'└── tree/root 1.0.0\n    ├── tree/a 1.0.0\n    │   └── tree/shared 1.0.0\n    │       ├── tree/leaf 1.0.0\n    │       └── tree/root 1.0.0 (cycle)\n    └── tree/b 1.0.0\n        └── tree/shared 1.0.0 (already shown)' \
+    "$grenadine" --repository "$tree_repo" -M "$mediator" -X tree/root 1.0.0
+done
+check_empty "tree expansion installs no jars" 0 \
+  find "$tree_repo" -name '*.jar' -print
+
+write_pom "$tree_repo" version root 1.0.0 \
+  '<dependency><groupId>version</groupId><artifactId>shared</artifactId><version>2.0.0</version></dependency>'
+write_pom "$tree_repo" version shared 1.0.0 \
+  '<dependency><groupId>version</groupId><artifactId>old</artifactId><version>1.0.0</version></dependency>'
+write_pom "$tree_repo" version shared 2.0.0 \
+  '<dependency><groupId>version</groupId><artifactId>new</artifactId><version>1.0.0</version></dependency>'
+write_pom "$tree_repo" version old 1.0.0 ''
+write_pom "$tree_repo" version new 1.0.0 ''
+check_exact "tree follows newest selected subtree" 0 \
+  $'├── version/root 1.0.0\n│   └── version/shared 2.0.0\n│       └── version/new 1.0.0\n└── version/shared 2.0.0 (already shown)' \
+  "$grenadine" --repository "$tree_repo" -M newest -X \
+    version/root 1.0.0 version/shared 1.0.0
+for mediator in nearest tools-deps; do
+  check_exact "tree follows direct selected subtree ($mediator)" 0 \
+    $'├── version/root 1.0.0\n│   └── version/shared 1.0.0\n│       └── version/old 1.0.0\n└── version/shared 1.0.0 (already shown)' \
+    "$grenadine" --repository "$tree_repo" -M "$mediator" -X \
+      version/root 1.0.0 version/shared 1.0.0
+done
 
 printf 'fixture jar\n' > "$resolve_repo/demo/root/1.0.0/root-1.0.0.jar"
 check_exact "list expanded graph marks missing jars" 0 \
@@ -306,7 +348,7 @@ remote_relative_deps="$current_remote/relative-local.edn"
 printf '{:mvn/local-repo "%s" :deps {example/local {:local/root "./local-lib"} demo/root {:mvn/version "1.0.0"}}}\n' \
   "$resolve_repo" > "$remote_relative_deps"
 check_exact "remote relative local root warns and continues" 0 \
-  $'grenadine: warning: skipping example/local from '"${server_url}relative-local.edn"$': relative :local/root "./local-lib"\ndemo/branch  1.0.0\ndemo/c       2.0.0\ndemo/root    1.0.0' \
+  $'grenadine: warning: skipping example/local from '"${server_url}relative-local.edn"$': relative :local/root "./local-lib"\n└── demo/root 1.0.0\n    ├── demo/branch 1.0.0\n    │   └── demo/c 2.0.0\n    └── demo/c 2.0.0 (already shown)' \
   "$grenadine" --expand "${server_url}relative-local.edn"
 check_empty "quiet remote relative local root continues" 0 \
   "$grenadine" --quiet --expand "${server_url}relative-local.edn"
@@ -316,7 +358,7 @@ project_file="$temporary/project.clj"
 printf '(defproject demo/project "1.0.0" :local-repo "%s" :description #=(os.Exit 78) :jar-exclusions [#"^(?!demo)"] #_#_ :dependencies [[demo/root "1.0.0"]] :dependencies [[demo/c "1.0.0" :classifier "tests" :optional true :native-prefix ""]])\n' \
   "$resolve_repo" > "$project_file"
 check_exact "expand local literal project" 0 \
-  "demo/c\$tests  1.0.0" \
+  "└── demo/c\$tests 1.0.0" \
   "$grenadine" --expand "$project_file"
 check_empty "quiet local literal project" 0 \
   "$grenadine" --quiet --expand "$project_file"
@@ -325,10 +367,10 @@ remote_project="$current_remote/project.clj"
 printf '(defproject demo/remote "1.0.0" :local-repo "%s" :repositories [["central" "%s"] ["clojars" {:url "%s" :snapshots false}]] :exclusions [demo/branch] :dependencies [[demo/root "1.0.0" :optional false]])\n' \
   "$project_repo" "$server_url" "$server_url" > "$remote_project"
 check_exact "expand remote literal project" 0 \
-  $'demo/c     1.0.0\ndemo/root  1.0.0' \
+  $'└── demo/root 1.0.0\n    └── demo/c 1.0.0' \
   "$grenadine" --expand "${server_url}project.clj"
 check_exact "mixed project and name use last root" 0 \
-  $'demo/c     2.0.0\ndemo/root  1.0.0' \
+  $'├── demo/c 2.0.0\n└── demo/root 1.0.0\n    └── demo/c 2.0.0 (already shown)' \
   "$grenadine" --expand "${server_url}project.clj" demo/c 2.0.0
 
 opaque_version_project="$temporary/opaque-version-project.clj"
@@ -336,7 +378,7 @@ printf '(defproject demo/opaque #=(clojure.string/trim #=(slurp "resources/VERSI
   "$resolve_repo" \
   > "$opaque_version_project"
 check_exact "project version form is ignored without evaluation" 0 \
-  "demo/c  1.0.0" \
+  "└── demo/c 1.0.0" \
   "$grenadine" --expand "$opaque_version_project"
 
 unsafe_project="$temporary/unsafe-project.clj"
@@ -376,20 +418,65 @@ check "missing project source is not parsed as a library" 1 \
   'cannot read .*missing/project.clj' \
   "$grenadine" --expand "$temporary/missing/project.clj"
 
-check_exact "current expanded graph aligns available updates" 0 \
-  $'demo/branch  1.0.0\ndemo/c       2.0.0  2.1.0\ndemo/root    1.0.0  1.1.0' \
+: > "$temporary/http-requests"
+check_exact "current tree shows available updates" 0 \
+  $'└── demo/root 1.0.0 -> 1.1.0\n    ├── demo/branch 1.0.0\n    │   └── demo/c 2.0.0 -> 2.1.0\n    └── demo/c 2.0.0 -> 2.1.0 (already shown)' \
   "$grenadine" --current "$current_deps"
+check_exact "current checks shared library metadata once" 0 '1' \
+  grep -c '^/demo/c/maven-metadata.xml$' "$temporary/http-requests"
 check_exact "current expanded graph accepts mediation" 0 \
-  $'demo/branch  1.0.0\ndemo/c       1.0.0  2.1.0\ndemo/root    1.0.0  1.1.0' \
+  $'└── demo/root 1.0.0 -> 1.1.0\n    ├── demo/branch 1.0.0\n    │   └── demo/c 1.0.0 -> 2.1.0\n    └── demo/c 1.0.0 -> 2.1.0 (already shown)' \
   "$grenadine" --mediator nearest --current "$current_deps"
+: > "$temporary/http-requests"
 check_empty "quiet current" 0 \
   "$grenadine" --quiet --current "$current_deps"
+check_empty "quiet current skips update checks" 0 \
+  cat "$temporary/http-requests"
+
+write_metadata "$current_remote" demo c 1.0.0
+check_exact "current ignores older remote versions" 0 \
+  $'└── demo/root 1.0.0 -> 1.1.0\n    ├── demo/branch 1.0.0\n    │   └── demo/c 2.0.0\n    └── demo/c 2.0.0 (already shown)' \
+  "$grenadine" --current "$current_deps"
+write_metadata "$current_remote" demo c 2.1.0
+
+write_pom "$tree_repo" org.clojure clojure 1.0.0 \
+  '<dependency><groupId>org.clojure</groupId><artifactId>spec.alpha</artifactId><version>1.0.0</version></dependency><dependency><groupId>org.clojure</groupId><artifactId>core.specs.alpha</artifactId><version>1.0.0</version></dependency>'
+write_pom "$tree_repo" org.clojure spec.alpha 1.0.0 ''
+write_pom "$tree_repo" org.clojure core.specs.alpha 1.0.0 ''
+current_hidden="$temporary/current-hidden.edn"
+printf '{:mvn/local-repo "%s" :mvn/repos {"central" {:url "%s"} "clojars" {:url "%s"}} :deps {org.clojure/clojure {:mvn/version "1.0.0"}}}\n' \
+  "$tree_repo" "$server_url" "$server_url" > "$current_hidden"
+: > "$temporary/http-requests"
+check_empty "current hides Clojure and its exclusive descendants" 0 \
+  "$grenadine" --current "$current_hidden"
+check_empty "hidden tree skips all metadata lookups" 0 \
+  cat "$temporary/http-requests"
+write_metadata "$current_remote" org.clojure spec.alpha 1.1.0
+check_exact "current retains independently requested spec" 0 \
+  '└── org.clojure/spec.alpha 1.0.0 -> 1.1.0' \
+  "$grenadine" --current "$current_hidden" org.clojure/spec.alpha 1.0.0
+
+for artifact in root a b shared leaf; do
+  write_metadata "$current_remote" tree "$artifact" 1.0.0
+done
+current_cycle="$temporary/current-cycle.edn"
+printf '{:mvn/local-repo "%s" :mvn/repos {"central" {:url "%s"} "clojars" {:url "%s"}} :deps {tree/root {:mvn/version "1.0.0"}}}\n' \
+  "$tree_repo" "$server_url" "$server_url" > "$current_cycle"
+check_exact "current tree stops cycles and merges exclusions" 0 \
+  $'└── tree/root 1.0.0\n    ├── tree/a 1.0.0\n    │   └── tree/shared 1.0.0\n    │       ├── tree/leaf 1.0.0\n    │       └── tree/root 1.0.0 (cycle)\n    └── tree/b 1.0.0\n        └── tree/shared 1.0.0 (already shown)' \
+  "$grenadine" --current "$current_cycle"
 
 empty_repo="$temporary/empty-repo"
 mkdir -p "$empty_repo"
 check_empty "current empty selected repository" 0 \
   "$grenadine" --repository "$empty_repo" --current
 check_empty "current empty repository directory item" 0 \
+  "$grenadine" --current "$empty_repo"
+mkdir -p "$empty_repo/org/clojure/clojure/1.0.0"
+printf 'fixture jar\n' > "$empty_repo/org/clojure/clojure/1.0.0/clojure-1.0.0.jar"
+check_empty "current inventory omits Clojure" 0 \
+  "$grenadine" --repository "$empty_repo" --current
+check_empty "current directory inventory omits Clojure" 0 \
   "$grenadine" --current "$empty_repo"
 check "current operation conflict" 1 \
   '--list, --current, --install' "$grenadine" --list --current
@@ -412,7 +499,7 @@ mixed_deps="$temporary/mixed-deps.edn"
 printf '{:mvn/local-repo "%s" :deps {demo/root {:mvn/version "1.0.0"}}}\n' \
   "$resolve_repo" > "$mixed_deps"
 check_exact "mixed source and name use last root" 0 \
-  $'demo/branch  1.0.0\ndemo/c       1.0.0\ndemo/root    1.0.0' \
+  $'├── demo/c 1.0.0\n└── demo/root 1.0.0\n    ├── demo/branch 1.0.0\n    │   └── demo/c 1.0.0 (already shown)\n    └── demo/c 1.0.0 (already shown)' \
   "$grenadine" --expand "$mixed_deps" demo/c 1.0.0
 
 for artifact in branch/1.0.0/branch-1.0.0 c/1.0.0/c-1.0.0 \
@@ -533,6 +620,8 @@ printf '{:paths ["src"]}\n' > "$deps_file"
 check_exact "missing deps is empty" 0 \
   '=> Installed: 0  Already: 0  Total: 0' \
   "$grenadine" --install "$deps_file"
+check_empty "empty dependency tree" 0 "$grenadine" -X "$deps_file"
+check_empty "empty current tree" 0 "$grenadine" --current "$deps_file"
 
 printf '{:deps []}\n' > "$deps_file"
 check "deps map validation" 1 ':deps must be a map' \
@@ -548,7 +637,7 @@ mkdir -p "$local_lib/src"
 printf '{:paths ["src"] :deps {}}\n' > "$local_lib/deps.edn"
 printf '{:deps {example/local {:local/root "./local-lib"}}}\n' > "$deps_file"
 check_exact "expand local coordinate" 0 \
-  "example/local  $local_lib" \
+  "└── example/local $local_lib" \
   "$grenadine" --expand "$deps_file"
 check_exact "list local coordinate" 0 \
   $'example/local  '"$local_lib"$'\n=> Installed: 1  Missing: 0  Total: 1' \
@@ -562,6 +651,46 @@ check "delete rejects local coordinate" 1 \
 check "remove rejects local coordinate" 1 \
   'support only Maven coordinates' \
   "$grenadine" --remove "$deps_file"
+
+printf '{:deps {tree/leaf {:mvn/version "1.0.0"}}}\n' \
+  > "$local_lib/deps.edn"
+check_exact "tree follows local manifest dependencies" 0 \
+  "└── example/local $local_lib"$'\n    └── tree/leaf 1.0.0' \
+  "$grenadine" -R "$tree_repo" -X "$deps_file"
+
+git_lib="$temporary/git-lib"
+mkdir -p "$git_lib"
+printf '{:deps {example/local {:local/root "%s"}}}\n' "$local_lib" \
+  > "$git_lib/deps.edn"
+git -C "$git_lib" init --quiet
+git -C "$git_lib" add deps.edn
+git -C "$git_lib" -c user.name=Grenadine -c user.email=test@example.com \
+  -c commit.gpgsign=false commit --quiet \
+  -m 'Create dependency tree fixture' \
+  -m 'Add a local dependency with a transitive Maven library.'
+git -C "$git_lib" tag v1.0.0
+git_sha=$(git -C "$git_lib" rev-parse HEAD)
+printf '{:deps {example/git {:git/url "file://%s" :git/sha "%s"}}}\n' \
+  "$git_lib" "$git_sha" > "$deps_file"
+check_exact "tree displays Git SHA and mixed descendants" 0 \
+  "└── example/git ${git_sha:0:12}"$'\n    └── example/local '"$local_lib"$'\n        └── tree/leaf 1.0.0' \
+  "$grenadine" -G "$temporary/gitlibs" -R "$tree_repo" -X "$deps_file"
+printf '{:deps {example/git {:git/url "file://%s" :git/sha "%s" :git/tag "v1.0.0"}}}\n' \
+  "$git_lib" "$git_sha" > "$deps_file"
+check_exact "tree displays Git tag" 0 \
+  $'└── example/git v1.0.0\n    └── example/local '"$local_lib"$'\n        └── tree/leaf 1.0.0' \
+  "$grenadine" -G "$temporary/gitlibs" -R "$tree_repo" -X "$deps_file"
+printf '{:mvn/repos {"central" {:url "%s"} "clojars" {:url "%s"}} :deps {example/git {:git/url "file://%s" :git/sha "%s" :git/tag "v1.0.0"}}}\n' \
+  "$server_url" "$server_url" "$git_lib" "$git_sha" > "$deps_file"
+write_metadata "$current_remote" tree leaf 1.1.0
+: > "$temporary/http-requests"
+check_exact "current tree preserves Git and local coordinates" 0 \
+  $'└── example/git v1.0.0\n    └── example/local '"$local_lib"$'\n        └── tree/leaf 1.0.0 -> 1.1.0' \
+  "$grenadine" -G "$temporary/gitlibs" -R "$tree_repo" --current "$deps_file"
+check_exact "current only checks Maven descendants" 0 \
+  '/tree/leaf/maven-metadata.xml' cat "$temporary/http-requests"
+check_empty "mixed tree expansion installs no jars" 0 \
+  find "$tree_repo" -name '*.jar' -print
 
 if (( failures )); then
   echo "$failures of $checks CLI checks failed" >&2

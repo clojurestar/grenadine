@@ -33,7 +33,7 @@ of an item list.
 | | `--install` | Expand and install all selected dependencies. |
 | | `--delete` | Delete only explicitly requested coordinates. |
 | | `--remove` | Expand inputs and delete their complete dependency closures. |
-| `-X` | `--expand` | Print an expanded graph without installing JARs. |
+| `-X` | `--expand` | Print a dependency tree without installing JARs. |
 | | `--mediators` | Describe the available mediation strategies. |
 | `-q` | `--quiet` | Suppress non-error operational output. |
 | `-h` | `--help` | Print usage. |
@@ -99,13 +99,14 @@ demo/root    1.0.0
 POMs may be cached during expansion, but cached metadata does not count as an
 installed JAR.
 
-Coordinate reports use two spaces between aligned columns.
+Inventory tables use two spaces between aligned columns.
 
 ## Current versions
 
 With no items or with one Maven repository directory, `--current` inventories
-the selected local repository like `--list`. With dependency items, it expands
-and mediates them like `--expand`:
+the selected local repository like `--list`, omitting `org.clojure/clojure`.
+With dependency items, it expands and mediates them like `--expand` and uses
+the same tree display:
 
 ```sh
 grenadine --current
@@ -114,11 +115,32 @@ grenadine --current deps.edn org.example/library 2.0.0
 grenadine -M nearest --current deps.edn
 ```
 
-For each Maven library, Grenadine checks the configured remote repositories
-and prints a third column only when a newer Maven-compatible version is
-available. Dependency sources can supply custom `:mvn/repos`; inventory mode
-uses Central followed by Clojars. Git and local coordinates are printed but do
-not have update checks.
+For each visible Maven library, Grenadine checks the configured remote
+repositories and shows an update only when a newer Maven-compatible version
+is available.
+Trees append `-> VERSION`; inventory tables use a third column and preserve
+all installed versions.
+Dependency sources can supply custom `:mvn/repos`; inventory mode uses Central
+followed by Clojars.
+Git and local coordinates are printed but do not have update checks.
+
+With dependency inputs:
+
+```text
+└── demo/root 1.0.0 -> 1.1.0
+    ├── demo/branch 1.0.0
+    │   └── demo/c 2.0.0 -> 2.1.0
+    └── demo/c 2.0.0 -> 2.1.0 (already shown)
+```
+
+Trees share `--expand`'s sorting, exclusion, repeated-library, and cycle rules.
+Version values are cyan on terminal output, including available updates.
+Tree connectors, update arrows, and the `(already shown)` marker are comment gray.
+Redirected output stays plain; set `NO_COLOR` to disable coloring.
+The `org.clojure/clojure` branch and dependencies reachable only through it
+are hidden and receive no update checks.
+
+Without dependency inputs:
 
 ```text
 org.clojure/core.specs.alpha    0.4.74
@@ -141,9 +163,31 @@ grenadine -M newest --expand deps.edn org.example/library 2.0.0
 
 Both operations combine all inputs and mediate once. `--install` installs the
 selected Maven artifacts and Git checkouts, validates local paths, and prints
-streamed installation lines plus its summary. `--expand` prints sorted
-coordinates and installs no Maven JARs. Both may cache POM metadata and procure
+streamed installation lines plus its summary.
+`--expand` prints a dependency tree and installs no Maven JARs.
+Both may cache POM metadata and procure
 Git checkouts required to read manifests.
+
+The tree starts with the direct dependencies, with roots and siblings sorted
+by library name:
+
+```text
+└── demo/root 1.0.0
+    ├── demo/branch 1.0.0
+    │   └── demo/c 2.0.0
+    └── demo/c 2.0.0 (already shown)
+```
+
+Each line shows the selected version, Git tag/SHA, or local path.
+The `org.clojure/clojure` branch is omitted from the display, including its
+dependencies unless they are also reachable through another displayed branch.
+This does not change dependency resolution or installation.
+A shared library's dependencies are expanded once; later occurrences are marked
+`(already shown)`.
+Cycles are marked `(cycle)` and are not expanded further.
+For a shared library, the children combine dependencies allowed by any reachable
+path, including when different paths have different exclusions.
+Empty dependency trees produce no output.
 
 ## Delete exact coordinates
 

@@ -10,6 +10,7 @@
             [grenadine.require-deps-test]
             [grenadine.runtime-test]
             [grenadine.source-test]
+            [grenadine.tree-test]
             [grenadine.version-test]
             [grenadine.xml-test]))
 
@@ -27,6 +28,7 @@
                         'grenadine.repo-test
                         'grenadine.require-deps-test
                         'grenadine.source-test
+                        'grenadine.tree-test
                         'grenadine.runtime-test)]
     (when (pos? (+ fail error))
       (throw (ex-info "Grenadine tests failed"

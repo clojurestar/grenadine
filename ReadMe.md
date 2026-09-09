@@ -143,7 +143,16 @@ use an absolute root.
 `group/artifact [version]` requests and local or remote deps sources.
 `--delete` removes only explicit coordinates; `--remove` expands and removes
 complete dependency closures.
-`--expand` prints the selected graph without installing JARs.
+`--expand` prints the selected dependencies as a tree without installing JARs.
+Roots and siblings are sorted by library name, and each library's dependencies
+are expanded once.
+Repeated libraries are marked `(already shown)` and cycles are marked `(cycle)`.
+Each line shows the selected version, Git tag/SHA, or local path.
+The `org.clojure/clojure` branch is omitted from the display.
+With dependency inputs, `--current` uses the same tree and appends
+`-> VERSION` when a newer Maven version is available.
+Without dependency inputs, it shows an inventory table, omitting
+`org.clojure/clojure`.
 Use `-M` or `--mediator` to select `newest`, `nearest`, or `tools-deps`.
 The default is `tools-deps`; `--mediators` describes all three.
 

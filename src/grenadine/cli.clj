@@ -8,6 +8,7 @@
             [grenadine.lock :as lock]
             [grenadine.repo :as repo]
             [grenadine.source :as source]
+            [grenadine.tree :as tree]
             [grenadine.version :as version]))
 
 (def usage
@@ -29,11 +30,11 @@
    "  -G, --gitlibs DIR     Use this Git library cache\n"
    "  -M, --mediator MODE   Use newest, nearest, or tools-deps\n"
    "      --list            List the repository or an expanded graph\n"
-   "      --current         List installed or selected dependency updates\n"
+   "      --current         Show updates in an inventory or dependency tree\n"
    "      --install         Install an expanded dependency graph\n"
    "      --delete          Delete only explicitly requested coordinates\n"
    "      --remove          Delete complete expanded dependency closures\n"
-   "  -X, --expand          Expand dependencies without installing JARs\n"
+   "  -X, --expand          Show a dependency tree without installing JARs\n"
    "      --mediators       List the available mediation strategies\n"
    "  -q, --quiet           Suppress non-error output\n"
    "  -h, --help            Show this help\n"
@@ -215,22 +216,50 @@
 (defn- pad-right [value width]
   (str value (apply str (repeat (- width (count value)) " "))))
 
-(defn- table-lines [rows]
+(defn- ansi-color [code value]
+  (let [[info error] (.Stat os.Stdout)]
+    (if (and (nil? error)
+             (not (zero? (bit-and (int (.Mode info))
+                                  (int os.ModeCharDevice))))
+             (empty? (os.Getenv "NO_COLOR"))
+             (not= "dumb" (os.Getenv "TERM")))
+      (str "\u001b[" code "m" value "\u001b[0m")
+      value)))
+
+(defn- cyan-version [value]
+  (ansi-color 36 value))
+
+(defn- gray-text [value]
+  (ansi-color 90 value))
+
+(defn- comment-suffix [suffix]
+  (if (= " (already shown)" suffix)
+    (str " " (gray-text "(already shown)"))
+    suffix))
+
+(defn- table-lines
+  ([rows] (table-lines rows false))
+  ([rows color-versions?]
   (let [first-width (apply max 0 (map #(count (first %)) rows))
-        second-width (apply max 0 (map #(count (second %)) rows))]
+        second-width (apply max 0 (map #(count (second %)) rows))
+        style (if color-versions? cyan-version identity)]
     (mapv
      (fn [[first-column second-column third-column]]
        (str (pad-right first-column first-width)
             "  "
             (if third-column
-              (str (pad-right second-column second-width)
-                   "  " third-column)
-              second-column)))
-     rows)))
+              (str (style second-column)
+                   (apply str (repeat (- second-width (count second-column))
+                                      " "))
+                   "  " (style third-column))
+              (style second-column))))
+     rows))))
 
-(defn- print-table! [rows]
-  (doseq [line (table-lines rows)]
-    (fmt.Fprintln os.Stdout line)))
+(defn- print-table!
+  ([rows] (print-table! rows false))
+  ([rows color-versions?]
+   (doseq [line (table-lines rows color-versions?)]
+     (fmt.Fprintln os.Stdout line))))
 
 (defn- repository-coordinates [root]
   (letfn
@@ -821,7 +850,9 @@
   (let [{:keys [deps options] :as input} (graph-input parsed)
         basis (grenadine/calc-basis
                {:deps deps}
-               (assoc options :fetch-artifacts? false))
+               (assoc options :fetch-artifacts? false
+                              :dependency-tree? (or (:expand parsed)
+                                                    (:current parsed))))
         entries (->> (:libs basis)
                      (sort-by (comp str key))
                      vec)]
@@ -839,15 +870,19 @@
 
 (defn- coordinate-line
   [lib coordinate]
-  (str/join " " (coordinate-row lib coordinate)))
+  (let [[name value] (coordinate-row lib coordinate)]
+    (str name " " (if (= :local (coordinate/coordinate-type coordinate))
+                    value
+                    (cyan-version value)))))
 
 (defn- print-expansion!
   [{:keys [quiet] :as parsed}]
-  (let [{:keys [basis entries]} (expand-result parsed)]
+  (let [{:keys [basis]} (expand-result parsed)]
     (when-not quiet
-      (print-table! (mapv (fn [[lib coordinate]]
-                            (coordinate-row lib coordinate))
-                          entries))
+      (doseq [line (tree/lines (:grenadine/tree basis)
+                             #(coordinate-line % (get-in basis [:libs %]))
+                             comment-suffix gray-text)]
+        (fmt.Fprintln os.Stdout line))
       (doseq [warning (:grenadine/warnings basis)]
         (fmt.Fprintln os.Stderr
                       (str "grenadine: warning: " (pr-str warning)))))))
@@ -966,9 +1001,34 @@
     {:rows rows :warnings @warnings}))
 
 (defn- print-current!
-  [entries options basis-warnings]
-  (let [{:keys [rows warnings]} (current-rows entries options)]
-    (print-table! rows)
+  [entries options basis-warnings dependency-tree]
+  (let [visible-libs (when dependency-tree
+                       (set (map :lib (tree/nodes dependency-tree))))
+        entries (filter (fn [[lib _]]
+                          (and (tree/visible? lib)
+                               (or (nil? dependency-tree)
+                                   (contains? visible-libs lib))))
+                        entries)
+        {:keys [rows warnings]} (current-rows entries options)]
+    (if dependency-tree
+      (let [coordinates (into {} entries)
+            labels (into {}
+                         (map (fn [[lib current latest]]
+                                [lib (str lib " "
+                                          (if (= :local
+                                                 (coordinate/coordinate-type
+                                                  (get coordinates
+                                                       (symbol lib))))
+                                            current
+                                            (cyan-version current))
+                                          (when latest
+                                            (str (gray-text " -> ")
+                                                 (cyan-version latest))))])
+                              rows))]
+        (doseq [line (tree/lines dependency-tree #(get labels (str %))
+                               comment-suffix gray-text)]
+          (fmt.Fprintln os.Stdout line)))
+      (print-table! rows true))
     (doseq [warning basis-warnings]
       (fmt.Fprintln os.Stderr
                     (str "grenadine: warning: " (pr-str warning))))
@@ -998,10 +1058,11 @@
             (print-current!
              (inventory-entries root)
              {:host host :repos lock/default-repos}
-             []))))
+             [] nil))))
       (let [{:keys [options basis entries]} (expand-result parsed)]
         (when-not quiet
-          (print-current! entries options (:grenadine/warnings basis)))))))
+          (print-current! entries options (:grenadine/warnings basis)
+                          (:grenadine/tree basis)))))))
 
 (defn- absolute-path [value]
   (let [[absolute error] (path:filepath.Abs value)]
