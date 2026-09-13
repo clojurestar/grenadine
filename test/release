@@ -21,7 +21,8 @@ missing_token="$temporary/missing-token.yaml"
 make_log="$temporary/make.log"
 
 dry_run=$(
-  make -C "$top" --no-print-directory -n release v="$version" a=1
+  make -C "$top" --no-print-directory -n release \
+    VERSION= v="$version" a=1
 )
 grep -Fq "RELEASE_ALLOW_BRANCH='1'" <<< "$dry_run"
 grep -Fq "'$release' release '$version'" <<< "$dry_run"
