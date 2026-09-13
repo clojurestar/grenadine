@@ -63,6 +63,7 @@ CLOJURE_LOAD_PATH=$(grenadine --loadpath deps.edn) cljr script.clj
 ```
 
 No separate `--install` invocation is needed.
+Use `--loadpath -` to read the dependency source from standard input.
 The generated value includes top-level project paths and resolved dependency
 roots in classpath order.
 The Clojure, spec.alpha, and core.specs.alpha artifacts are treated as

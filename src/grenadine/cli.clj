@@ -24,7 +24,7 @@
    "       grenadine --mediators\n"
    "       grenadine --help\n"
    "       grenadine --version\n\n"
-   "ITEM is NAME [VERSION] or a local/remote DEPENDENCY-SOURCE.\n"
+   "ITEM is NAME [VERSION], a local/remote DEPENDENCY-SOURCE, or stdin (-).\n"
    "--list and --current also accept a Maven repository DIR.\n\n"
    "Options:\n"
    "  -R, --repository DIR  Use this Maven repository\n"
@@ -126,6 +126,10 @@
           (when (empty? directory)
             (fail! "--gitlibs requires a directory"))
           (recur (next remaining) (assoc options :gitlibs directory)))
+
+        (= "-" argument)
+        (recur (next remaining)
+               (update options :operands (fnil conj []) argument))
 
         (.startsWith argument "-")
         (fail! (str "unknown option: " argument))
@@ -659,8 +663,18 @@
 
 (defn- read-config [input host root-paths?]
   (let [content
-        (if (source/remote? input)
+        (cond
+          (= "-" input)
+          (let [[content error] (io.ReadAll os.Stdin)]
+            (when error
+              (fail! (str "cannot read standard input: "
+                          (fmt.Sprint error))))
+            (go/string content))
+
+          (source/remote? input)
           (source/fetch-text host input)
+
+          :else
           (let [[content error] (os.ReadFile input)]
             (when error
               (fail! (str "cannot read " input ": " (fmt.Sprint error))))
@@ -677,7 +691,8 @@
 
 (defn- explicit-source?
   [value host]
-  (or (source/remote? value)
+  (or (= "-" value)
+      (source/remote? value)
       (str/ends-with? (str/lower-case value) ".edn")
       (str/ends-with? (str/lower-case value) "project.clj")
       ((:exists? host) value)))

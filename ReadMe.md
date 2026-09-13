@@ -101,6 +101,7 @@ grenadine --repository=my-m2 --add deps.edn
 grenadine --quiet --add deps.edn
 grenadine --install --unzip deps.edn
 grenadine --loadpath deps.edn
+grenadine --loadpath - < deps.edn
 grenadine --list
 grenadine --list deps.edn
 grenadine --repository=my-m2 --list
@@ -136,6 +137,8 @@ CLOJURE_LOAD_PATH=$(grenadine --loadpath deps.edn) cljr script.clj
 
 It treats Clojure, spec.alpha, and core.specs.alpha as host-provided
 libraries.
+Use `-` as the dependency source to read `deps.edn` content from standard
+input.
 The repository used by `-R` or `--repository` takes precedence over
 `:mvn/local-repo` in the deps source, `GRENADINE_MAVEN_REPOSITORY`, and the
 default `$HOME/.m2/repository`, in that order.

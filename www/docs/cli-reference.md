@@ -14,10 +14,13 @@ Usage: grenadine
        grenadine --version
 ```
 
-An `ITEM` is either `NAME [VERSION]` or a local/remote dependency source. A
-dependency source is a deps.edn-style map or a literal Leiningen
-`project.clj`. Operations accept mixed item lists. Bare `grenadine` prints the
-same help as `--help`; operands without an explicit operation are rejected.
+An `ITEM` is `NAME [VERSION]`, a local/remote dependency source, or `-` to read
+a dependency source from standard input.
+A dependency source is a deps.edn-style map or a literal Leiningen
+`project.clj`.
+Operations accept mixed item lists.
+Bare `grenadine` prints the same help as `--help`; operands without an explicit
+operation are rejected.
 
 `--list` and `--current` also accept one Maven repository directory in place
 of an item list.
@@ -207,6 +210,12 @@ in-1 grenadine cljr
 CLOJURE_LOAD_PATH=$(grenadine --loadpath deps.edn) cljr script.clj
 ```
 
+Standard input works as a dependency source too:
+
+```sh
+CLOJURE_LOAD_PATH=$(grenadine --loadpath - < deps.edn) cljr script.clj
+```
+
 Installation progress and summaries are suppressed so command substitution
 receives only the load path.
 Warnings remain on standard error.
@@ -220,11 +229,12 @@ Git and local dependency directories remain unchanged.
 `org.clojure/core.specs.alpha` are treated as supplied by ClojureCLR, so their
 artifacts and transitive graphs are not installed or included.
 
-Local deps sources contribute their top-level `:paths`.
+Dependency sources contribute their top-level `:paths`.
 Literal `project.clj` sources contribute `:source-paths` and
 `:resource-paths`, defaulting to `src` and `resources` when those keys are
 absent.
-Relative project paths are resolved from the source file's directory.
+Relative project paths are resolved from the source file's directory, or the
+current working directory for standard input.
 Relative paths in remote sources are skipped with a warning because the
 remote project has not been checked out; absolute paths remain usable.
 Project and dependency roots retain classpath order, with duplicates removed

@@ -121,6 +121,12 @@ check_exact() {
   fi
 }
 
+run_with_stdin() {
+  local input=$1
+  shift
+  "$@" <<< "$input"
+}
+
 seed_repo() {
   local repository=$1
   local base=$repository/org/example/demo/1.0.0
@@ -592,6 +598,11 @@ check_empty "loadpath omits ClojureCLR host libraries" 0 \
 check_exact "loadpath reuses extracted dependency" 0 \
   "$expected_loadpath" \
   "$grenadine" --repository "$loadpath_repo" --loadpath "$loadpath_deps"
+stdin_deps='{:deps {demo/loadable {:mvn/version "1.0.0"}}}'
+check_exact "loadpath reads deps from stdin" 0 \
+  "$loadpath_root" \
+  run_with_stdin "$stdin_deps" \
+    "$grenadine" --repository "$loadpath_repo" --loadpath -
 plain_jar="$loadpath_repo/demo/plain/1.0.0/plain-1.0.0.jar"
 write_pom "$loadpath_repo" demo plain 1.0.0 ''
 write_jar "$plain_jar" demo/plain.clj
