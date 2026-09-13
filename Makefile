@@ -18,6 +18,7 @@ GOBB_SOURCE_DIR ?= $(abspath $(CURDIR)/../gobb)
 
 include $M/init.mk
 include $M/clojure.mk
+include $M/cljr.mk
 include $M/glojure.mk
 include $M/gloat.mk
 include $M/gobb.mk
@@ -103,7 +104,7 @@ install: $(GRENADINE)
 	$Q install -d '$(DESTDIR)$(PREFIX)/bin'
 	$Q install -m 0755 '$(GRENADINE)' '$(DESTDIR)$(PREFIX)/bin/grenadine'
 
-test: test-all test-cli test-scripts test-jar test-release
+test: test-all test-cli test-cljr test-scripts test-jar test-release
 
 test-glj: src $(GLJ)
 	GLJ_CLASSPATH=src:test $(GLJ) -e \
@@ -140,11 +141,19 @@ oracle: src $(CLOJURE)
 test-cli: $(GRENADINE)
 	GRENADINE='$(GRENADINE)' test/cli
 
+test-cljr: $(GRENADINE) $(CLJR)
+	GRENADINE='$(GRENADINE)' CLJR='$(CLJR)' test/cljr
+
 test-release: $(YQ)
 	YQ='$(YQ)' test/release
 
 test-scripts: src-check $(SHELLCHECK) $(PWSH)
-	$(SHELLCHECK) util/brew-update util/source-patches util/stage-sources util/release util/release-dist test/cli test/homebrew test/installer test/jar test/provenance test/release www/docs/get www/docs/install
+	$(SHELLCHECK) \
+	  util/brew-update util/source-patches util/stage-sources \
+	  util/release util/release-dist \
+	  test/cli test/cljr test/homebrew test/installer test/jar \
+	  test/provenance test/release \
+	  www/docs/get www/docs/install
 	test/homebrew
 	test/installer
 	test/provenance

@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+grenadine=${GRENADINE:?GRENADINE is required}
+cljr=${CLJR:?CLJR is required}
+temporary=$(mktemp -d)
+
+cleanup() {
+  rm -rf "$temporary"
+}
+
+trap cleanup EXIT
+
+repository="$temporary/m2"
+deps="$temporary/deps.edn"
+script="$temporary/script.clj"
+
+printf '%s\n' \
+  '{:deps' \
+  ' {medley/medley {:mvn/version "1.4.0"}}}' \
+  > "$deps"
+printf '%s\n' \
+  "(require 'medley.core)" \
+  '(prn (medley.core/index-by :id [{:id 1}]))' \
+  > "$script"
+
+loadpath=$(
+  "$grenadine" --repository "$repository" --loadpath "$deps"
+)
+output=$(
+  CLOJURE_LOAD_PATH="$loadpath" "$cljr" "$script"
+)
+
+if [[ $output != '{1 {:id 1}}' ]]; then
+  echo "unexpected ClojureCLR output: $output" >&2
+  exit 1
+fi
+
+if [[ -e $repository/org/clojure ]]; then
+  echo "ClojureCLR host libraries were installed" >&2
+  exit 1
+fi
+
+printf '%s\n' 'ClojureCLR loadpath smoke passed'

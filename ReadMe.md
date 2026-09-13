@@ -99,6 +99,8 @@ or remote `deps.edn` source without Java:
 grenadine --add deps.edn
 grenadine --repository=my-m2 --add deps.edn
 grenadine --quiet --add deps.edn
+grenadine --install --unzip deps.edn
+grenadine --loadpath deps.edn
 grenadine --list
 grenadine --list deps.edn
 grenadine --repository=my-m2 --list
@@ -124,6 +126,16 @@ By default, Grenadine prints each dependency immediately after installing it,
 then reports installed, already-present, and total counts.
 Already-present dependencies are not listed individually.
 Use `-q` or `--quiet` to suppress non-error output.
+For ClojureCLR, `--loadpath` performs installation and JAR extraction before
+printing a path suitable for direct command substitution:
+
+```sh
+in-1 grenadine cljr
+CLOJURE_LOAD_PATH=$(grenadine --loadpath deps.edn) cljr script.clj
+```
+
+It treats Clojure, spec.alpha, and core.specs.alpha as host-provided
+libraries.
 The repository used by `-R` or `--repository` takes precedence over
 `:mvn/local-repo` in the deps source, `GRENADINE_MAVEN_REPOSITORY`, and the
 default `$HOME/.m2/repository`, in that order.

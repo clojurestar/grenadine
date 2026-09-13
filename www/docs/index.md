@@ -65,6 +65,8 @@ Use an installed `grenadine` binary like this:
 grenadine --install deps.edn
 grenadine --repository=my-m2 --install deps.edn
 grenadine --quiet --install deps.edn
+grenadine --install --unzip deps.edn
+grenadine --loadpath deps.edn
 grenadine --list
 grenadine --list ~/.m2/repository
 grenadine --list deps.edn
@@ -101,6 +103,19 @@ Project code and profiles are not evaluated; see the
 The command lists each newly installed dependency immediately, then prints the
 installed, already-present, and total counts.
 Quiet mode suppresses non-error output.
+
+For ClojureCLR, install `grenadine` and `cljr` with
+[in-1](https://in-1.cc), then let `--loadpath` perform dependency
+installation and source extraction:
+
+```sh
+in-1 grenadine cljr
+CLOJURE_LOAD_PATH=$(grenadine --loadpath deps.edn) cljr script.clj
+```
+
+The command prints only the platform-native load path.
+It treats the Clojure, spec.alpha, and core.specs.alpha artifacts as supplied
+by ClojureCLR.
 
 [Install Grenadine](installation.md){ .md-button .md-button--primary }
 [Read the CLI reference](cli-reference.md){ .md-button }

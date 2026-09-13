@@ -123,8 +123,8 @@
     (go-error! (str "resolve archive entry " name) error)
     (when (or (= relative "..")
               (path:filepath.IsAbs relative)
-              (.HasPrefix strings relative
-                          (str ".." (go/string os.PathSeparator))))
+              (strings.HasPrefix relative
+                                 (str ".." (go/string os.PathSeparator))))
       (throw (Exception. (str "unsafe archive entry " name))))
     target))
 

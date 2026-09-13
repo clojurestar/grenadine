@@ -4,7 +4,8 @@
 Usage: grenadine
        grenadine [OPTIONS] --list [ITEM...]
        grenadine [OPTIONS] --current [ITEM...]
-       grenadine [OPTIONS] [-M MODE] --install ITEM...
+       grenadine [OPTIONS] [-M MODE] [--unzip] --install ITEM...
+       grenadine [OPTIONS] [-M MODE] --loadpath ITEM...
        grenadine [OPTIONS] --delete ITEM...
        grenadine [OPTIONS] [-M MODE] --remove ITEM...
        grenadine [OPTIONS] [-M MODE] --expand ITEM...
@@ -31,6 +32,8 @@ of an item list.
 | | `--list` | List the repository or report an expanded graph's local status. |
 | | `--current` | List installed or selected dependencies and available updates. |
 | | `--install` | Expand and install all selected dependencies. |
+| | `--unzip` | Also extract Maven JARs installed by `--install`. |
+| | `--loadpath` | Install and print a ClojureCLR load path. |
 | | `--delete` | Delete only explicitly requested coordinates. |
 | | `--remove` | Expand inputs and delete their complete dependency closures. |
 | `-X` | `--expand` | Print a dependency tree without installing JARs. |
@@ -41,6 +44,10 @@ of an item list.
 
 Exactly one operation is accepted. `--repository=DIR` and
 `--mediator=MODE` are equivalent to their separated forms.
+`--unzip` is valid only with `--install`.
+`--loadpath` is an operation that performs installation and extraction itself.
+It cannot be combined with `--quiet` because its standard output is the
+requested load path.
 The former `--add` spelling remains a deprecated alias for `--install`; it is
 omitted from help and emits a warning whenever it is used.
 
@@ -189,6 +196,48 @@ For a shared library, the children combine dependencies allowed by any reachable
 path, including when different paths have different exclusions.
 Empty dependency trees produce no output.
 
+## ClojureCLR load paths
+
+`--loadpath` is the complete installation operation for ClojureCLR.
+It resolves the input graph, installs missing dependencies, extracts Maven
+JARs, and prints one path-separated `CLOJURE_LOAD_PATH` value:
+
+```sh
+in-1 grenadine cljr
+CLOJURE_LOAD_PATH=$(grenadine --loadpath deps.edn) cljr script.clj
+```
+
+Installation progress and summaries are suppressed so command substitution
+receives only the load path.
+Warnings remain on standard error.
+The path separator is selected for the current operating system and every
+entry is absolute.
+
+Maven JAR entries are replaced in place by Grenadine's safe, digest-keyed
+extraction directories.
+Git and local dependency directories remain unchanged.
+`org.clojure/clojure`, `org.clojure/spec.alpha`, and
+`org.clojure/core.specs.alpha` are treated as supplied by ClojureCLR, so their
+artifacts and transitive graphs are not installed or included.
+
+Local deps sources contribute their top-level `:paths`.
+Literal `project.clj` sources contribute `:source-paths` and
+`:resource-paths`, defaulting to `src` and `resources` when those keys are
+absent.
+Relative project paths are resolved from the source file's directory.
+Relative paths in remote sources are skipped with a warning because the
+remote project has not been checked out; absolute paths remain usable.
+Project and dependency roots retain classpath order, with duplicates removed
+after their first occurrence.
+
+Use `--install --unzip` when extraction is wanted without load-path output:
+
+```sh
+grenadine --install --unzip deps.edn
+```
+
+This keeps the ordinary install progress and summary unchanged.
+
 ## Delete exact coordinates
 
 ```sh
@@ -241,15 +290,16 @@ nearest    Select the shortest path, then declaration order
 tools-deps Preserve direct dependencies; otherwise select newest (default)
 ```
 
-`-M/--mediator` is valid with `--install`, `--expand`, `--remove`, and with
-`--list` or `--current` when dependency items are supplied. It is rejected
-with repository inventory, `--delete`, and `--mediators`. The `--mediators`
-operation does not accept other options.
+`-M/--mediator` is valid with `--install`, `--loadpath`, `--expand`,
+`--remove`, and with `--list` or `--current` when dependency items are
+supplied. It is rejected with repository inventory, `--delete`, and
+`--mediators`. The `--mediators` operation does not accept other options.
 
 ## deps.edn input format
 
 ```clojure
-{:mvn/local-repo "/optional/local/repository"
+{:paths ["src" "resources"]
+ :mvn/local-repo "/optional/local/repository"
  :mvn/repos
  {"company" {:url "https://maven.example.com/releases/"}}
  :deps
@@ -257,7 +307,8 @@ operation does not accept other options.
 ```
 
 The source must contain an EDN map. Missing `:deps` means an empty dependency
-set. Coordinates may use `:mvn/version`, `:git/url` with `:git/sha`, or
+set. Top-level `:paths` are used by `--loadpath`.
+Coordinates may use `:mvn/version`, `:git/url` with `:git/sha`, or
 `:local/root`. Git and local directory coordinates require `deps.edn` or
 `pom.xml`; `:deps/root` and `:deps/manifest` refine where and how that manifest
 is read. Relative `:local/root` values require a local deps source; Grenadine
@@ -276,6 +327,8 @@ literal `defproject`:
 ```clojure
 (defproject example/application "1.2.3"
   :local-repo "/optional/local/repository"
+  :source-paths ["src"]
+  :resource-paths ["resources"]
   :repositories
   [["company" {:url "https://maven.example.com/releases/"}]]
   :exclusions [example/unwanted]
@@ -288,9 +341,11 @@ literal `defproject`:
 
 Grenadine reads the project name, ignores the project version form, and reads
 only `:dependencies`, `:repositories`, `:local-repo`, and project-level
-`:exclusions`. The version form is never evaluated, so projects that compute
-their own version can still be expanded. Dependency IDs may be symbols or
-strings. Dependency options support `:classifier`, `:exclusions`,
+`:exclusions` for dependency operations.
+For `--loadpath`, it also reads literal `:source-paths` and `:resource-paths`.
+The version form is never evaluated, so projects that compute their own
+version can still be expanded. Dependency IDs may be symbols or strings.
+Dependency options support `:classifier`, `:exclusions`,
 `:extension "jar"`, `:scope "compile"` or `"runtime"`, `:optional`, and
 `:native-prefix`; the last two do not change dependency selection.
 

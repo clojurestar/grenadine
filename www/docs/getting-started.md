@@ -46,6 +46,35 @@ To use another repository:
 grenadine --repository=my-m2 --install deps.edn
 ```
 
+## Use dependencies with ClojureCLR
+
+[in-1](https://in-1.cc) can make both Grenadine and ClojureCLR available in
+the current shell:
+
+```sh
+in-1 grenadine cljr
+```
+
+`--loadpath` installs missing dependencies, extracts their Clojure sources,
+and prints the directory load path expected by ClojureCLR:
+
+```sh
+CLOJURE_LOAD_PATH=$(grenadine --loadpath deps.edn) cljr script.clj
+```
+
+No separate `--install` invocation is needed.
+The generated value includes top-level project paths and resolved dependency
+roots in classpath order.
+The Clojure, spec.alpha, and core.specs.alpha artifacts are treated as
+provided by ClojureCLR.
+
+To extract installed Maven JARs while retaining the normal human-readable
+install report, use:
+
+```sh
+grenadine --install --unzip deps.edn
+```
+
 Or use a deps.edn URL:
 
 ```sh

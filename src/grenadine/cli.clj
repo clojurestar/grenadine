@@ -16,7 +16,8 @@
    "Usage: grenadine\n"
    "       grenadine [OPTIONS] --list [ITEM...]\n"
    "       grenadine [OPTIONS] --current [ITEM...]\n"
-   "       grenadine [OPTIONS] [-M MODE] --install ITEM...\n"
+   "       grenadine [OPTIONS] [-M MODE] [--unzip] --install ITEM...\n"
+   "       grenadine [OPTIONS] [-M MODE] --loadpath ITEM...\n"
    "       grenadine [OPTIONS] --delete ITEM...\n"
    "       grenadine [OPTIONS] [-M MODE] --remove ITEM...\n"
    "       grenadine [OPTIONS] [-M MODE] --expand ITEM...\n"
@@ -32,6 +33,8 @@
    "      --list            List the repository or an expanded graph\n"
    "      --current         Show updates in an inventory or dependency tree\n"
    "      --install         Install an expanded dependency graph\n"
+   "      --unzip           Also extract installed Maven JARs\n"
+   "      --loadpath        Install and print a ClojureCLR load path\n"
    "      --delete          Delete only explicitly requested coordinates\n"
    "      --remove          Delete complete expanded dependency closures\n"
    "  -X, --expand          Show a dependency tree without installing JARs\n"
@@ -68,6 +71,12 @@
 
         (= "--install" argument)
         (recur (next remaining) (assoc options :install true))
+
+        (= "--unzip" argument)
+        (recur (next remaining) (assoc options :unzip true))
+
+        (= "--loadpath" argument)
+        (recur (next remaining) (assoc options :loadpath true))
 
         (= "--add" argument)
         (recur (next remaining)
@@ -582,8 +591,10 @@
   #{:dependencies :repositories :local-repo :exclusions})
 
 (defn- project-config
-  [input source]
+  [input source root-paths?]
   (let [sources (project-form-sources input source)
+        fields (cond-> project-fields
+                 root-paths? (conj :source-paths :resource-paths))
         defproject-symbol (when-let [head (first sources)]
                             (safe-read input head))]
     (when-not (= 'defproject defproject-symbol)
@@ -605,7 +616,7 @@
                     input
                     (str "defproject option must be a keyword: "
                          (pr-str key))))
-                 (if (project-fields key)
+                 (if (fields key)
                    (assoc result key (safe-read input value-source))
                    result)))
              {}
@@ -624,22 +635,29 @@
          {:deps (into {}
                       (map #(project-dependency input global-exclusions %))
                       (or dependencies []))
-          :mvn/repos (project-repositories input (:repositories project))}
+          :mvn/repos (project-repositories input (:repositories project))
+          ::project? true
+          ::source-paths (if (contains? project :source-paths)
+                           (:source-paths project)
+                           ["src"])
+          ::resource-paths (if (contains? project :resource-paths)
+                             (:resource-paths project)
+                             ["resources"])}
           local-repo (assoc :mvn/local-repo local-repo))))))
 
 (defn- dependency-config
-  [input content]
+  [input content root-paths?]
   (let [start (skip-source-layout content 0)]
     (if (and (< start (count content))
              (= \( (.charAt content start)))
-      (project-config input content)
+      (project-config input content root-paths?)
       (let [form (safe-read input content)]
         (if (map? form)
           form
           (fail! (str input
                       " must contain an EDN map or literal defproject form")))))))
 
-(defn- read-config [input host]
+(defn- read-config [input host root-paths?]
   (let [content
         (if (source/remote? input)
           (source/fetch-text host input)
@@ -647,7 +665,7 @@
             (when error
               (fail! (str "cannot read " input ": " (fmt.Sprint error))))
             (go/string content)))]
-    (let [config (dependency-config input content)]
+    (let [config (dependency-config input content root-paths?)]
       (when-not (map? config)
         (fail! (str input " must contain an EDN map")))
       (when (and (contains? config :deps)
@@ -692,6 +710,46 @@
 (defn- source-base-dir [input]
   (if (source/remote? input) "." (path:filepath.Dir input)))
 
+(defn- validate-root-paths
+  [input label paths]
+  (when-not (sequential? paths)
+    (fail! (str input " " label " must be a sequential collection")))
+  (doseq [path paths]
+    (when-not (and (string? path) (not (str/blank? path)))
+      (fail! (str input " " label " must contain nonblank strings"))))
+  paths)
+
+(defn- config-root-paths
+  [input config quiet]
+  (let [paths
+        (if (::project? config)
+          (concat
+           (validate-root-paths input ":source-paths" (::source-paths config))
+           (validate-root-paths input ":resource-paths"
+                                (::resource-paths config)))
+          (if (contains? config :paths)
+            (validate-root-paths input ":paths" (:paths config))
+            []))]
+    (into []
+          (keep
+           (fn [root]
+             (cond
+               (path:filepath.IsAbs root)
+               root
+
+               (source/remote? input)
+               (do
+                 (when-not quiet
+                   (fmt.Fprintln
+                    os.Stderr
+                    (str "grenadine: warning: skipping relative path "
+                         (pr-str root) " from " input)))
+                 nil)
+
+               :else
+               (path:filepath.Join (source-base-dir input) root))))
+          paths)))
+
 (defn- input-coordinate
   [lib coordinate input quiet]
   (if-let [root (:local/root coordinate)]
@@ -723,13 +781,13 @@
              :input input))))
 
 (defn- input-bundle
-  [operands host quiet]
+  [operands host quiet root-paths?]
   (reduce
    (fn [bundle item]
      (if (= :library (:kind item))
        (update bundle :requests conj (:request item))
        (let [input (:source item)
-             config (read-config input host)
+             config (read-config input host root-paths?)
              requests
              (into []
                    (keep (fn [[lib coordinate]]
@@ -738,12 +796,16 @@
          (cond-> (-> bundle
                      (update :requests into requests)
                      (update :mvn-repos merge (:mvn/repos config)))
+           root-paths?
+           (update :root-paths into (config-root-paths input config quiet))
+
            (contains? config :mvn/local-repo)
            (assoc :local-repo (:mvn/local-repo config))
 
            (contains? config :gitlibs/dir)
            (assoc :gitlibs-dir (:gitlibs/dir config))))))
-   {:requests [] :mvn-repos {} :local-repo nil :gitlibs-dir nil}
+   {:requests [] :root-paths [] :mvn-repos {}
+    :local-repo nil :gitlibs-dir nil}
    (parse-items operands host)))
 
 (defn- bundle-repos
@@ -778,11 +840,20 @@
 
 (defn- operation-options
   [parsed bundle host]
-  {:host host
-   :repos (bundle-repos bundle)
-   :local-repo (or (:repository parsed) (:local-repo bundle))
-   :gitlibs-dir (or (:gitlibs parsed) (:gitlibs-dir bundle))
-   :mediation (:mediation parsed)})
+  (cond->
+   {:host host
+    :repos (bundle-repos bundle)
+    :local-repo (or (:repository parsed) (:local-repo bundle))
+    :gitlibs-dir (or (:gitlibs parsed) (:gitlibs-dir bundle))
+    :mediation (:mediation parsed)}
+    (or (:unzip parsed) (:loadpath parsed))
+    (assoc :source-roots? true)
+
+    (:loadpath parsed)
+    (assoc :provided-libs
+           #{'org.clojure/clojure
+             'org.clojure/spec.alpha
+             'org.clojure/core.specs.alpha})))
 
 (declare coordinate-line)
 
@@ -804,7 +875,8 @@
                        "  Total: " (+ installed already)))))
 
 (defn- install-deps!
-  [deps {:keys [host repos local-repo gitlibs-dir quiet mediation]}]
+  [deps {:keys [host repos local-repo gitlibs-dir quiet mediation
+                source-roots? provided-libs loadpath]}]
   (let [result
         (grenadine/install!
          deps
@@ -813,13 +885,18 @@
                   :mediation mediation}
            local-repo (assoc :local-repo local-repo)
            gitlibs-dir (assoc :gitlibs-dir gitlibs-dir)
-           (not quiet) (assoc :on-install print-installed!
-                              :on-install-coordinate print-installed!)))]
+           source-roots? (assoc :source-roots? true)
+           provided-libs (assoc :provided-libs provided-libs)
+           (and (not quiet) (not loadpath))
+           (assoc :on-install print-installed!
+                  :on-install-coordinate print-installed!)))]
     (when-not quiet
       (doseq [warning (:warnings result)]
         (fmt.Fprintln os.Stderr
                       (str "grenadine: warning: " (pr-str warning))))
-      (print-summary! result))))
+      (when-not loadpath
+        (print-summary! result)))
+    result))
 
 (defn- resolve-requests
   [requests host repos]
@@ -834,7 +911,8 @@
 (defn- graph-input
   [parsed]
   (let [host (glojure-host/host)
-        bundle (input-bundle (:operands parsed) host (:quiet parsed))]
+        bundle (input-bundle (:operands parsed) host (:quiet parsed)
+                             (:loadpath parsed))]
     {:host host
      :bundle bundle
      :deps (resolved-deps bundle host)
@@ -844,6 +922,42 @@
   [{:keys [quiet] :as parsed}]
   (let [{:keys [deps options]} (graph-input parsed)]
     (install-deps! deps (assoc options :quiet quiet))))
+
+(defn- canonical-path
+  [host path]
+  ((:canonical-path host) path))
+
+(defn- maven-source-roots
+  [result options host]
+  (let [base (repo/local-repo options)]
+    (into {}
+          (map
+           (fn [{:keys [path sha256]}]
+             (let [jar (str base "/" path)]
+               [(canonical-path host jar)
+                (canonical-path host
+                                (str jar ".grenadine/" sha256))])))
+          (get-in result [:lock :artifacts]))))
+
+(defn- loadpath-roots
+  [bundle result options host]
+  (let [extracted (maven-source-roots result options host)
+        project-roots (map #(canonical-path host %) (:root-paths bundle))
+        dependency-roots
+        (map
+         (fn [root]
+           (let [root (canonical-path host root)]
+             (get extracted root root)))
+         (:classpath result))]
+    (vec (distinct (concat project-roots dependency-roots)))))
+
+(defn- loadpath!
+  [parsed]
+  (let [{:keys [host bundle deps options]} (graph-input parsed)
+        result (install-deps! deps (assoc options :loadpath true))
+        roots (loadpath-roots bundle result options host)]
+    (fmt.Fprintln os.Stdout
+                  (str/join (go/string os.PathListSeparator) roots))))
 
 (defn- expand-result
   [parsed]
@@ -1125,7 +1239,7 @@
 (defn- delete!
   [{:keys [quiet] :as parsed}]
   (let [host (glojure-host/host)
-        bundle (input-bundle (:operands parsed) host quiet)
+        bundle (input-bundle (:operands parsed) host quiet false)
         root (absolute-path
               (repo/local-repo
                {:host host
@@ -1150,7 +1264,7 @@
 (defn- remove!
   [{:keys [quiet] :as parsed}]
   (let [host (glojure-host/host)
-        bundle (input-bundle (:operands parsed) host quiet)
+        bundle (input-bundle (:operands parsed) host quiet false)
         _ (validate-maven-removal! (:requests bundle))
         options (operation-options parsed bundle host)
         root (absolute-path (repo/local-repo options))
@@ -1233,8 +1347,8 @@
 (defn -main [& argv]
   (try
     (github.com:glojurelang:glojure:pkg:stdlib:clojure:core:protocols.LoadNS)
-    (let [{:keys [help version list current install delete remove expand mediators
-                  operands repository deprecated-add]
+    (let [{:keys [help version list current install unzip loadpath delete remove
+                  expand mediators operands repository deprecated-add]
            :as parsed}
           (parse-options argv)
           _ (when deprecated-add
@@ -1242,7 +1356,8 @@
                os.Stderr
                "grenadine: warning: --add is deprecated; use --install"))
           modes (filter identity
-                        [list current install delete remove expand mediators])
+                        [list current install loadpath delete remove expand
+                         mediators])
           mediation (mediation-strategy (:mediator parsed))
           options (assoc parsed
                          :mediation mediation)]
@@ -1252,14 +1367,19 @@
                               (str "grenadine v" build-info/version))
         (> (count modes) 1)
         (fail! (str "--list, --current, --install, --delete, --remove, "
-                    "--expand, and --mediators "
+                    "--expand, --loadpath, and --mediators "
                     "are mutually exclusive"))
+        (and unzip (not install))
+        (fail! "--unzip is only valid with --install")
+        (and loadpath (:quiet parsed))
+        (fail! "--loadpath does not use --quiet")
         (and (:mediator parsed)
-             (not (or install remove expand
+             (not (or install loadpath remove expand
                       (and list (seq operands))
                       (and current (seq operands)))))
-        (fail! (str "--mediator is only valid with --install, --remove, "
-                    "--expand, --list with items, or --current with items"))
+        (fail! (str "--mediator is only valid with --install, --loadpath, "
+                    "--remove, --expand, --list with items, or "
+                    "--current with items"))
         mediators
         (cond
           (seq operands) (fail! "--mediators does not accept items")
@@ -1272,6 +1392,9 @@
         install (if (empty? operands)
                   (fail! "--install requires at least one item")
                   (install! options))
+        loadpath (if (empty? operands)
+                   (fail! "--loadpath requires at least one item")
+                   (loadpath! options))
         delete (if (empty? operands)
                  (fail! "--delete requires at least one item")
                  (delete! options))

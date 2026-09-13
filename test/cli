@@ -135,6 +135,20 @@ seed_repo() {
   printf 'fixture jar\n' > "$base/demo-1.0.0.jar"
 }
 
+write_jar() {
+  local jar=$1 entry=$2
+  python3 - "$jar" "$entry" <<'PY'
+import pathlib
+import sys
+import zipfile
+
+jar, entry = sys.argv[1:]
+pathlib.Path(jar).parent.mkdir(parents=True, exist_ok=True)
+with zipfile.ZipFile(jar, "w") as archive:
+    archive.writestr(entry, "(ns demo.loadable)\n")
+PY
+}
+
 seed_list_repo() {
   local repository=$1
   seed_repo "$repository"
@@ -227,8 +241,11 @@ check_exact "list repository directory item" 0 \
   "$grenadine" --list "$list_repo"
 check_empty "quiet list" 0 \
   "$grenadine" --quiet --repository="$list_repo" --list
+operation_conflict=
+operation_conflict+='--list, --current, --install, --delete, --remove, '
+operation_conflict+='--expand, --loadpath, and --mediators are mutually exclusive'
 check "operation conflict" 1 \
-  '--list, --current, --install, --delete, --remove, --expand, and --mediators are mutually exclusive' \
+  "$operation_conflict" \
   "$grenadine" --list --install org.example/demo 1.0.0
 
 check_exact "list mediation strategies" 0 \
@@ -355,8 +372,15 @@ check_empty "quiet remote relative local root continues" 0 \
 
 project_repo="$temporary/project repo"
 project_file="$temporary/project.clj"
-printf '(defproject demo/project "1.0.0" :local-repo "%s" :description #=(os.Exit 78) :jar-exclusions [#"^(?!demo)"] #_#_ :dependencies [[demo/root "1.0.0"]] :dependencies [[demo/c "1.0.0" :classifier "tests" :optional true :native-prefix ""]])\n' \
-  "$resolve_repo" > "$project_file"
+printf '%s\n' \
+  '(defproject demo/project "1.0.0"'\
+" :local-repo \"$resolve_repo\""\
+' :source-paths #=(os.Exit 78)'\
+' :jar-exclusions [#"^(?!demo)"]'\
+' #_#_ :dependencies [[demo/root "1.0.0"]]'\
+' :dependencies [[demo/c "1.0.0"'\
+' :classifier "tests" :optional true :native-prefix ""]])' \
+  > "$project_file"
 check_exact "expand local literal project" 0 \
   "└── demo/c\$tests 1.0.0" \
   "$grenadine" --expand "$project_file"
@@ -533,6 +557,90 @@ check "install requires an item" 1 '--install requires at least one item' \
   "$grenadine" --install
 check "install rejects unreadable source" 1 'cannot read missing.edn' \
   "$grenadine" --install missing.edn
+check "unzip requires install" 1 \
+  '--unzip is only valid with --install' \
+  "$grenadine" --unzip org.example/demo 1.0.0
+check "loadpath requires an item" 1 \
+  '--loadpath requires at least one item' "$grenadine" --loadpath
+check "loadpath rejects quiet" 1 \
+  '--loadpath does not use --quiet' \
+  "$grenadine" --quiet --loadpath org.example/demo 1.0.0
+
+loadpath_repo="$temporary/loadpath repo"
+loadpath_project="$temporary/loadpath project"
+loadpath_jar="$loadpath_repo/demo/loadable/1.0.0/loadable-1.0.0.jar"
+loadpath_deps="$loadpath_project/deps.edn"
+mkdir -p "$loadpath_project/src" "$loadpath_project/resources"
+write_pom "$loadpath_repo" demo loadable 1.0.0 \
+  '<dependency><groupId>org.clojure</groupId><artifactId>clojure</artifactId>'\
+'<version>1.12.4</version></dependency>'
+write_jar "$loadpath_jar" demo/loadable.clj
+printf '%s\n' \
+  '{:paths ["src" "src" "resources"]' \
+  ' :deps {demo/loadable {:mvn/version "1.0.0"}}}' \
+  > "$loadpath_deps"
+loadpath_sha=$(sha256sum "$loadpath_jar" | cut -d ' ' -f 1)
+loadpath_root="$loadpath_jar.grenadine/$loadpath_sha"
+expected_loadpath="$loadpath_project/src:$loadpath_project/resources:$loadpath_root"
+check_exact "loadpath installs and extracts dependencies" 0 \
+  "$expected_loadpath" \
+  "$grenadine" --repository "$loadpath_repo" --loadpath "$loadpath_deps"
+check_empty "loadpath extracted JAR contents" 0 \
+  test -f "$loadpath_root/demo/loadable.clj"
+check_empty "loadpath omits ClojureCLR host libraries" 0 \
+  test ! -e "$loadpath_repo/org/clojure"
+check_exact "loadpath reuses extracted dependency" 0 \
+  "$expected_loadpath" \
+  "$grenadine" --repository "$loadpath_repo" --loadpath "$loadpath_deps"
+plain_jar="$loadpath_repo/demo/plain/1.0.0/plain-1.0.0.jar"
+write_pom "$loadpath_repo" demo plain 1.0.0 ''
+write_jar "$plain_jar" demo/plain.clj
+check_exact "unzip preserves install reporting" 0 \
+  '=> Installed: 0  Already: 1  Total: 1' \
+  "$grenadine" --repository "$loadpath_repo" --install --unzip \
+    demo/plain 1.0.0
+plain_sha=$(sha256sum "$plain_jar" | cut -d ' ' -f 1)
+check_empty "unzip extracts installed JARs" 0 \
+  test -f "$plain_jar.grenadine/$plain_sha/demo/plain.clj"
+
+lein_project="$loadpath_project/project.clj"
+mkdir -p "$loadpath_project/code" "$loadpath_project/assets"
+printf '%s\n' \
+  '(defproject demo/project "1.0.0"' \
+  '  :source-paths ["code"]' \
+  '  :resource-paths ["assets"]' \
+  '  :dependencies [[demo/loadable "1.0.0"]])' \
+  > "$lein_project"
+check_exact "loadpath includes literal project roots" 0 \
+  "$loadpath_project/code:$loadpath_project/assets:$loadpath_root" \
+  "$grenadine" --repository "$loadpath_repo" --loadpath "$lein_project"
+
+default_project="$loadpath_project/default-project.clj"
+printf '(defproject demo/default "1.0.0")\n' > "$default_project"
+check_exact "loadpath includes default Leiningen roots" 0 \
+  "$loadpath_project/src:$loadpath_project/resources" \
+  "$grenadine" --loadpath "$default_project"
+
+invalid_paths="$loadpath_project/invalid-paths.edn"
+printf '{:paths "src"}\n' > "$invalid_paths"
+check "loadpath validates deps paths" 1 \
+  ':paths must be a sequential collection' \
+  "$grenadine" --loadpath "$invalid_paths"
+check "loadpath disables evaluation in project paths" 1 \
+  'cannot parse' \
+  "$grenadine" --loadpath "$project_file"
+
+remote_loadpath="$current_remote/loadpath.edn"
+absolute_root="$temporary/absolute-root"
+mkdir -p "$absolute_root"
+printf '{:paths ["remote-src" "%s"]}\n' "$absolute_root" \
+  > "$remote_loadpath"
+remote_warning=
+remote_warning+='grenadine: warning: skipping relative path "remote-src" from '
+remote_warning+="${server_url}loadpath.edn"
+check_exact "loadpath skips remote relative paths" 0 \
+  "$remote_warning"$'\n'"$absolute_root" \
+  "$grenadine" --loadpath "${server_url}loadpath.edn"
 
 remove_repo="$temporary/remove repo"
 seed_list_repo "$remove_repo"
@@ -645,6 +753,8 @@ check_exact "list local coordinate" 0 \
 check_exact "install local coordinate" 0 \
   '=> Installed: 0  Already: 1  Total: 1' \
   "$grenadine" --install "$deps_file"
+check_exact "loadpath keeps local dependency roots" 0 \
+  "$local_lib/src" "$grenadine" --loadpath "$deps_file"
 check "delete rejects local coordinate" 1 \
   'support only Maven coordinates' \
   "$grenadine" --delete "$deps_file"
