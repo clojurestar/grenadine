@@ -268,6 +268,14 @@ and `GRENADINE_ORACLE_CASES`.
 
 `make release VERSION=X.Y.Z` publishes the Clojars artifact, native archives,
 website, and Homebrew formulas.
+`v=X.Y.Z` is accepted as a shorthand for `VERSION=X.Y.Z`.
+Releases normally require `main`; use `a=1` to explicitly allow the current
+named branch:
+
+```sh
+make release v=X.Y.Z a=1
+```
+
 The release gate uses the pinned Jolt release rather than an adjacent checkout.
 Local `main` may be ahead of `origin/main`; after validation and deployment, the
 workflow pushes the release commit and tag to `origin` atomically.

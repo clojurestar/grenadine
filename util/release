@@ -179,7 +179,11 @@ load_clojars_credentials() {
 validate_git_context() {
   local branch
   branch=$(git branch --show-current)
-  [[ $branch == main ]] || {
+  [[ -n $branch ]] || {
+    echo "release: releases require a named branch" >&2
+    exit 1
+  }
+  [[ $branch == main || ${RELEASE_ALLOW_BRANCH:-0} == 1 ]] || {
     echo "release: releases must be made from main, not $branch" >&2
     exit 1
   }

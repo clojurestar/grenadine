@@ -187,9 +187,15 @@ release-homebrew:
 	$Q '$(BREW-UPDATE)' '$(VERSION)'
 
 release: $(GH) $(YQ)
-	@$(if $(filter command line,$(origin VERSION)),,\
-	  $(error VERSION is required on the command line))
-	$Q YQ='$(YQ)' GH='$(GH)' '$(RELEASE)' release '$(VERSION)'
+	@$(if $(and $(strip $(or $(VERSION),$(v))),\
+	              $(filter command line,$(origin VERSION) $(origin v))),,\
+	  $(error VERSION or v is required on the command line))
+	@$(if $(and $(filter command line,$(origin a)),\
+	              $(filter-out 1,$(a))),\
+	  $(error a must be 1 when specified),)
+	$Q RELEASE_ALLOW_BRANCH='$(if $(and \
+	  $(filter command line,$(origin a)),$(filter 1,$(a))),1,0)' \
+	  YQ='$(YQ)' GH='$(GH)' '$(RELEASE)' release '$(or $(VERSION),$(v))'
 
 release-mark-deployed:
 	@$(if $(and $(filter 1,$(DEPLOYED)),$(filter command line,$(origin VERSION))),,\
