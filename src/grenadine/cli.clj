@@ -50,6 +50,9 @@
   (fmt.Fprintln os.Stderr (str "grenadine: " message))
   (exit! 1))
 
+(defn- runtime-host []
+  (glojure-host/host (str "grenadine/" build-info/version)))
+
 (defn- parse-options [argv]
   (loop [remaining argv options {}]
     (if-let [argument (first remaining)]
@@ -301,7 +304,7 @@
     (sort-by (juxt :group :artifact :version) (walk root []))))
 
 (defn- list-repository! [{:keys [repository quiet]}]
-  (let [host (glojure-host/host)
+  (let [host (runtime-host)
         local-repo (repo/local-repo {:host host :local-repo repository})]
     (when-not quiet
       (print-table!
@@ -925,7 +928,7 @@
 
 (defn- graph-input
   [parsed]
-  (let [host (glojure-host/host)
+  (let [host (runtime-host)
         bundle (input-bundle (:operands parsed) host (:quiet parsed)
                              (:loadpath parsed))]
     {:host host
@@ -1083,7 +1086,7 @@
 
 (defn- list!
   [parsed]
-  (let [host (glojure-host/host)
+  (let [host (runtime-host)
         parsed (inventory-options parsed host "--list")]
     (if (empty? (:operands parsed))
       (do
@@ -1175,7 +1178,7 @@
 
 (defn- current!
   [{:keys [quiet] :as parsed}]
-  (let [host (glojure-host/host)
+  (let [host (runtime-host)
         parsed (inventory-options parsed host "--current")]
     (if (empty? (:operands parsed))
       (do
@@ -1253,7 +1256,7 @@
 
 (defn- delete!
   [{:keys [quiet] :as parsed}]
-  (let [host (glojure-host/host)
+  (let [host (runtime-host)
         bundle (input-bundle (:operands parsed) host quiet false)
         root (absolute-path
               (repo/local-repo
@@ -1278,7 +1281,7 @@
 
 (defn- remove!
   [{:keys [quiet] :as parsed}]
-  (let [host (glojure-host/host)
+  (let [host (runtime-host)
         bundle (input-bundle (:operands parsed) host quiet false)
         _ (validate-maven-removal! (:requests bundle))
         options (operation-options parsed bundle host)

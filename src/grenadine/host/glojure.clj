@@ -11,14 +11,14 @@
   {:status status :headers {} :body body})
 
 (defn- http-get
-  [url]
+  [user-agent url]
   (let [[request request-error]
         (net:http.NewRequest net:http.MethodGet url nil)]
     (if-not (nil? request-error)
       (http-response 0 nil)
       (do
         (.Set (.Header request) "User-Agent"
-              "grenadine")
+              user-agent)
         (let [[response response-error] (.Do net:http.DefaultClient request)]
           (if-not (nil? response-error)
             (http-response 0 nil)
@@ -166,30 +166,31 @@
   nil)
 
 (defn host
-  []
-  {:http-get http-get
-   :read-bytes read-bytes
-   :write-bytes! write-bytes!
-   :bytes->utf8 (fn [data] (go/string data))
-   :digest digest
-   :byte-count (fn [data] (go/len data))
-   :exists? (fn [path]
-              (let [[_ error] (os.Stat path)]
-                (nil? error)))
-   :directory? (fn [path]
-                 (when-let [info (file-info path)] (.IsDir info)))
-   :regular-file? (fn [path]
-                    (when-let [info (file-info path)]
-                      (.IsRegular (.Mode info))))
-   :canonical-path canonical-path
-   :absolute-path canonical-path
-   :find-files find-files
-   :extract-jar! extract-jar!
-   :run-process run-process
-   :read-edn read-string
-   :mkdirs! mkdirs!
-   :atomic-move! atomic-move!
-   :delete! delete!
-   :delete-tree! delete!
-   :home-dir home-dir
-   :getenv (fn [name] (os.Getenv name))})
+  ([] (host "grenadine"))
+  ([user-agent]
+   {:http-get (fn [url] (http-get user-agent url))
+    :read-bytes read-bytes
+    :write-bytes! write-bytes!
+    :bytes->utf8 (fn [data] (go/string data))
+    :digest digest
+    :byte-count (fn [data] (go/len data))
+    :exists? (fn [path]
+               (let [[_ error] (os.Stat path)]
+                 (nil? error)))
+    :directory? (fn [path]
+                  (when-let [info (file-info path)] (.IsDir info)))
+    :regular-file? (fn [path]
+                     (when-let [info (file-info path)]
+                       (.IsRegular (.Mode info))))
+    :canonical-path canonical-path
+    :absolute-path canonical-path
+    :find-files find-files
+    :extract-jar! extract-jar!
+    :run-process run-process
+    :read-edn read-string
+    :mkdirs! mkdirs!
+    :atomic-move! atomic-move!
+    :delete! delete!
+    :delete-tree! delete!
+    :home-dir home-dir
+    :getenv (fn [name] (os.Getenv name))}))

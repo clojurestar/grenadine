@@ -27,13 +27,14 @@ checks=0
 start_http_server() {
   local root=$1 port_file="$temporary/http-port"
   rm -f "$port_file"
-  python3 - "$root" "$port_file" "$temporary/http-requests" <<'PY' &
+  python3 - "$root" "$port_file" "$temporary/http-requests" \
+    "$temporary/http-user-agents" <<'PY' &
 import functools
 import http.server
 import pathlib
 import sys
 
-root, port_file, request_file = sys.argv[1:]
+root, port_file, request_file, user_agent_file = sys.argv[1:]
 class QuietHandler(http.server.SimpleHTTPRequestHandler):
     def log_message(self, _format, *_args):
         pass
@@ -44,6 +45,8 @@ class QuietHandler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
         with pathlib.Path(request_file).open("a", encoding="utf-8") as requests:
             requests.write(self.path + "\n")
+        with pathlib.Path(user_agent_file).open("a", encoding="utf-8") as agents:
+            agents.write(self.headers.get("User-Agent", "") + "\n")
         super().do_GET()
 
 handler = functools.partial(QuietHandler, directory=root)
@@ -364,6 +367,7 @@ write_metadata "$current_remote" demo branch 1.0.0
 write_metadata "$current_remote" demo c 2.1.0
 write_metadata "$current_remote" demo root 1.1.0
 start_http_server "$current_remote"
+: > "$temporary/http-user-agents"
 current_deps="$temporary/current-deps.edn"
 printf '{:mvn/local-repo "%s" :mvn/repos {"central" {:url "%s"} "clojars" {:url "%s"}} :deps {demo/root {:mvn/version "1.0.0"}}}\n' \
   "$resolve_repo" "$server_url" "$server_url" > "$current_deps"
@@ -373,6 +377,9 @@ printf '{:mvn/local-repo "%s" :deps {example/local {:local/root "./local-lib"} d
 check_exact "remote relative local root warns and continues" 0 \
   $'grenadine: warning: skipping example/local from '"${server_url}relative-local.edn"$': relative :local/root "./local-lib"\n└── demo/root 1.0.0\n    ├── demo/branch 1.0.0\n    │   └── demo/c 2.0.0\n    └── demo/c 2.0.0 (already shown)' \
   "$grenadine" --expand "${server_url}relative-local.edn"
+check_exact "remote request identifies Grenadine version" 0 \
+  "grenadine/$version" \
+  cat "$temporary/http-user-agents"
 check_empty "quiet remote relative local root continues" 0 \
   "$grenadine" --quiet --expand "${server_url}relative-local.edn"
 
